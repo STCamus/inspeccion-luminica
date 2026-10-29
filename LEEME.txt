@@ -1,0 +1,18 @@
+Inspección lumínica en terreno · prototipo fase 1 (v0.1.2)
+
+Instalación en iPhone o iPad
+1. Publique esta carpeta en un servidor web con HTTPS (servidor institucional, GitHub Pages u otro).
+   La ubicación GPS y el funcionamiento sin conexión exigen HTTPS.
+2. Abra la dirección en Safari, toque Compartir y elija "Agregar a pantalla de inicio".
+3. Abra la aplicación una vez con conexión: quedan guardadas la aplicación y las capas.
+   Desde ahí funciona en modo avión.
+
+Uso
+- Use siempre la aplicación instalada (ícono en la pantalla de inicio): en Safari sin instalar,
+  iOS puede borrar los datos locales después de un período sin uso.
+- Exporte el paquete .zip al cerrar cada inspección (regla R16).
+
+Contenido
+index.html, sw.js, manifest.webmanifest  Aplicación y su modo sin conexión.
+jszip.min.js                              Generador de .docx y .zip (MIT).
+layers/                                   Capas APB, RECOGE, radio 50 km y sitios astronómicos (simplificadas a ~30 m).

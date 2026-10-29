@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inspección Lumínica en Terreno</title>
+<meta name="theme-color" content="#1F4FA8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inspección SMA">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Prototipo de aplicación de terreno para inspecciones bajo el D.S. N°1/2022 MMA: preparación, estaciones georreferenciadas, aplicabilidad, inventario de luminarias, borrador de acta y paquete de datos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una columna de terreno, cabecera fija con navegación por módulos; tarjetas solo para grupos de campos. */
+:root{
+  --bg:#EEF0F3; --surface:#FFFFFF; --surface2:#F5F6F8; --ink:#121826; --ink2:#3B4458; --muted:#677087;
+  --line:#D3D7E0; --line2:#E4E7ED;
+  --accent:#1F4FA8; --accent-ink:#FFFFFF; --accent-s:#E3EAF8;
+  --ok:#1E6E4C; --ok-s:#DDF0E6; --warn:#9A5A07; --warn-s:#F8EBD6; --bad:#A12E2E; --bad-s:#F7E1E1;
+  --sans:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1017; --surface:#161B25; --surface2:#1C2230; --ink:#E7EAF1; --ink2:#B8BFCF; --muted:#8890A5;
+  --line:#2C3345; --line2:#232A3A; --accent:#8FB0F5; --accent-ink:#0D1017; --accent-s:#1C2A47;
+  --ok:#6CC59B; --ok-s:#12291F; --warn:#E3A957; --warn-s:#33260F; --bad:#EC8A8A; --bad-s:#351B1B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1017; --surface:#161B25; --surface2:#1C2230; --ink:#E7EAF1; --ink2:#B8BFCF; --muted:#8890A5;
+  --line:#2C3345; --line2:#232A3A; --accent:#8FB0F5; --accent-ink:#0D1017; --accent-s:#1C2A47;
+  --ok:#6CC59B; --ok-s:#12291F; --warn:#E3A957; --warn-s:#33260F; --bad:#EC8A8A; --bad-s:#351B1B; color-scheme:dark}
+/* Modo nocturno de terreno: baja luminancia en rojo para preservar la visión nocturna */
+:root[data-night="1"]{
+  --bg:#000000; --surface:#0B0303; --surface2:#140505; --ink:#D24A3A; --ink2:#B03A2E; --muted:#7E2C24;
+  --line:#3A100C; --line2:#260A08; --accent:#E0533F; --accent-ink:#000000; --accent-s:#2A0B08;
+  --ok:#C9563E; --ok-s:#1E0806; --warn:#E06A3F; --warn-s:#240A06; --bad:#FF6A55; --bad-s:#2C0905; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink2);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 96px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line);
+  margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.bar{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:10px;padding-block:10px 6px}
+.bar .t{flex:1;min-width:0}
+.bar .eyebrow{font:600 10.5px/1.2 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.bar h1{margin:2px 0 0;font:600 16px/1.25 var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{border:1px solid var(--line);background:var(--surface2);border-radius:6px;min-width:40px;height:40px;padding:0 10px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink2)}
+.iconbtn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+nav.mods{max-width:760px;margin:0 auto;display:flex;gap:6px;overflow-x:auto;padding-block:4px 10px;scrollbar-width:none}
+nav.mods::-webkit-scrollbar{display:none}
+nav.mods button{flex:none;border:1px solid var(--line);background:var(--surface2);border-radius:18px;padding:7px 12px;cursor:pointer;font-size:13px;color:var(--ink2);display:flex;gap:7px;align-items:center;white-space:nowrap}
+nav.mods button code{font:600 11px var(--mono);color:var(--muted)}
+nav.mods button[aria-current="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+nav.mods button[aria-current="true"] code{color:var(--surface)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none}
+.dot.ok{background:var(--ok)}
+main{padding-top:16px;display:grid;gap:16px}
+h2{margin:6px 0 0;font:600 22px/1.2 var(--sans);color:var(--ink);text-wrap:balance}
+.lede{margin:0;color:var(--muted);font-size:14px;max-width:62ch}
+.card{background:var(--surface);border:1px solid var(--line2);border-radius:var(--r);padding:14px;display:grid;gap:12px}
+.card>h3{margin:0;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.card>h3 span{font:400 12.5px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.f{display:grid;gap:4px;min-width:0}
+.f>.lb{font-size:13px;font-weight:500;color:var(--ink2);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.req{font:600 10px var(--mono);color:var(--warn);letter-spacing:.04em}
+.dest{font:500 10px var(--mono);color:var(--muted);margin-left:auto}
+.f input,.f select,.f textarea{width:100%;min-width:0;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:10px;font-size:16px}
+.f textarea{min-height:80px;resize:vertical}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--accent);outline:none;background:var(--surface)}
+.f.miss input,.f.miss select,.f.miss textarea{border-color:var(--warn)}
+.hint{margin:0;font-size:12.5px;color:var(--muted);max-width:66ch}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--surface2);border-radius:18px;padding:8px 13px;cursor:pointer;font-size:14px;color:var(--ink2);min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.seg.miss button{border-color:var(--warn)}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer;padding:4px 0}
+.chk input{width:20px;height:20px;margin-top:1px;accent-color:var(--accent);flex:none}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:10px 14px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink2);min-height:44px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.dan{color:var(--bad);border-color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{border-left:3px solid var(--warn);background:var(--warn-s);padding:9px 12px;border-radius:0 6px 6px 0;font-size:13.5px;color:var(--ink)}
+.note.info{border-color:var(--accent);background:var(--accent-s)}
+.note.bad{border-color:var(--bad);background:var(--bad-s)}
+.note.ok{border-color:var(--ok);background:var(--ok-s)}
+.note b{font-weight:600}
+.pill{display:inline-block;font:600 10.5px/1.6 var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:1px 8px;border-radius:10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-s)}
+.pill.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-s)}
+.pill.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-s)}
+.pill.acc{color:var(--accent);border-color:var(--accent);background:var(--accent-s)}
+.item{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.item>header{display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--line2);flex-wrap:wrap}
+.item>header .id{font:600 13px var(--mono);color:var(--accent)}
+.item>header .nm{flex:1 1 160px;min-width:0;font-weight:600;color:var(--ink)}
+.item .body{padding:14px;display:grid;gap:12px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13.5px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0;color:var(--ink);font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.zones{display:grid;gap:6px}
+.zone{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13.5px;align-items:baseline}
+.zone .pill{grid-row:span 2}
+.zone small{color:var(--muted);grid-column:2}
+.thumbs{display:flex;flex-wrap:wrap;gap:8px}
+.thumb{position:relative;width:88px}
+.thumb img{width:88px;height:88px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block;background:var(--surface2)}
+.thumb span{display:block;font:600 11px var(--mono);color:var(--ink2);margin-top:2px}
+.thumb button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:13px;border:0;background:var(--surface);color:var(--bad);font-weight:700;cursor:pointer}
+.addphoto{width:88px;height:88px;border:1.5px dashed var(--line);border-radius:6px;display:grid;place-items:center;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;background:var(--surface2);padding:4px}
+.addphoto input{display:none}
+.list{display:grid;gap:10px}
+.insp{display:grid;gap:4px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px 14px;cursor:pointer}
+.insp b{color:var(--ink);font-size:15px}
+.insp small{color:var(--muted)}
+.check{display:grid;gap:6px}
+.check li{font-size:14px}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:4px}
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.foot .in{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:center}
+.foot .st{flex:1;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px)}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+fieldset:disabled .seg button,fieldset:disabled .btn:not(.keep){opacity:.55}
+.sample{border:1px dashed var(--warn);background:var(--warn-s);color:var(--ink);border-radius:var(--r);padding:10px 12px;font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sample b{font:600 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--warn)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="bar">
+    <div class="t"><div class="eyebrow" id="eyebrow">SMA · D.S. N°1/2022 · Prototipo fase 1</div><h1 id="title">Inspección lumínica en terreno</h1></div>
+    <button class="iconbtn" id="btn-night" type="button" aria-pressed="false" title="Modo nocturno">Noche</button>
+  </div>
+  <nav class="mods" id="mods" aria-label="Módulos"></nav>
+</header>
+<div class="wrap"><main id="main"></main></div>
+<div class="foot"><div class="in"><span class="st" id="status">Cargando…</span><button class="btn" id="btn-prev" type="button">Anterior</button><button class="btn pri" id="btn-next" type="button">Siguiente</button></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="jszip.min.js"></script>
+<script>
+"use strict";
+/* ============ Constantes y catálogos ============ */
+var APP_VER='0.1.2', RULES_VER='reglas 2026-10 · árbol v3';
+var IN_ARTIFACT=typeof window.claude!=='undefined'&&!!window.claude&&typeof window.claude.use==='function';
+var TIPOS={
+  peatonal:'Peatonal', vehicular:'Vehicular', industrial:'Industrial', ornamental:'Ornamental y decorativo',
+  deportivo:'Deportivo y recreacional', pub_luminoso:'Publicitario · aviso o letrero luminoso',
+  pub_iluminado:'Publicitario · aviso o letrero iluminado', canon:'Cañón de luz o proyector láser'
+};
+var LAMPARAS={led:'LED',sap:'Sodio alta presión',sbp:'Sodio baja presión',hm:'Haluro metálico',otra:'Otra'};
+var CERT={aprobacion:'Aprobación',seguimiento:'Seguimiento',tipo:'De tipo (no habilita)',sin:'Sin certificación',nc:'No consta en terreno'};
+var ORIENT={via:'Vía o área de tránsito',mar:'Mar',ap:'Área protegida',viv:'Viviendas',cielo:'Cielo / sobre la horizontal'};
+var MATERIAS=[
+  'Calificación de las fuentes como alumbrado de exteriores (art. 3 D.S. N°1/2022)',
+  'Certificación de luminarias (PCL N°1)',
+  'Instalación y orientación de luminarias',
+  'Emplazamiento respecto de Áreas de Protección Especial',
+  'Restricción horaria de alumbrado ornamental, deportivo y publicitario',
+  'Apagado o reducción del flujo en áreas industriales sin faena (art. 5 N°2)',
+  'Emisión por reflexión y luminancia (PCL N°2 / PCL N°3)'
+];
+var INSTRUMENTOS=[
+  'D.S. N° 1/2022 MMA, Norma de Emisión de Luminosidad Artificial generada por alumbrado de exteriores.',
+  'PCL N° 1: Protocolo de análisis y ensayos de contaminación lumínica de luminarias y/o proyectores (RE SMA 1358/2024).',
+  'PCL N° 2: Protocolo de medición - Alumbrado vial, peatonal, industrial, ornamental y decorativo, deportivo y recreacional (RE SMA 1803/2024).',
+  'PCL N° 3: Protocolo de medición - Avisos y letreros luminosos (RE SMA 625/2024).',
+  'PCL N° 4: Protocolo para regularización de fuentes existentes (RE SMA 1948/2024).',
+  'Instrucciones generales sobre deberes de remisión de información - SISAT (RE SMA 1986/2024).'
+];
+/* Equivalencia con los rótulos de la versión 0.1.0, para inspecciones ya guardadas */
+var INSTR_OLD=['D.S. N°1/2022 MMA, Norma de Emisión de Luminosidad Artificial generada por Alumbrados de Exteriores',
+  'Res. Ex. SMA N°1358/2024 (PCL N°1)','Res. Ex. SMA N°1803/2024 (PCL N°2)','Res. Ex. SMA N°625/2024 (PCL N°3)',
+  'Res. Ex. SMA N°1948/2024 (PCL N°4)','Res. Ex. SMA N°1986/2024 (remisión de información)'];
+function migrate(I){if(I&&I.prep&&Array.isArray(I.prep.instrumentos))I.prep.instrumentos=I.prep.instrumentos.map(function(x){var k=INSTR_OLD.indexOf(x);return k>=0?INSTRUMENTOS[k]:x;});return I;}
+var DOCS=[
+  {k:'d1',t:'Catastro de luminarias con los campos del Anexo 1 del PCL N°4 (cantidad, tipo de lámpara, marca, modelo, potencia, fecha de instalación, ubicación, N° y fecha de certificado de contaminación lumínica).'},
+  {k:'d2',t:'Certificados de aprobación o de seguimiento (PCL N°1) de cada modelo de luminaria instalado.'},
+  {k:'d3',t:'Planos as-built o de ubicación georreferenciada de las luminarias (dwg, kml, shp o pdf).'},
+  {k:'d4',t:'Declaraciones efectuadas en el Trámite Eléctrico de la SEC o en el módulo norma lumínica del SISAT (Res. Ex. SMA N°1986/2024).'},
+  {k:'d5',t:'Antecedentes que acrediten la fecha de instalación o de recambio de las luminarias (TE2, facturas, órdenes de compra, RCA).'},
+  {k:'d6',t:'Programación de encendido, apagado o reducción del alumbrado.'},
+  {k:'d7',t:'Registro de turnos y bitácora de operación del área industrial iluminada, para el período que se indique.'},
+  {k:'d8',t:'Autorización de la excepción a la restricción horaria (Delegación Presidencial o municipio), si la hubiere.'},
+  {k:'d9',t:'Clase de la instalación deportiva y memoria de cálculo luminotécnico (NCh3834:2023).'},
+  {k:'d10',t:'Dimensiones del aviso o letrero luminoso y programación de su luminancia nocturna.'},
+  {k:'d11',t:'Antecedentes del proceso de regularización conforme al PCL N°4 (carta a la SMA, informes del laboratorio).'}
+];
+var MODS=[
+  {k:'inicio',c:'',n:'Inspecciones'},
+  {k:'m0',c:'M0',n:'Preparación'},
+  {k:'m1',c:'M1',n:'Ejecución'},
+  {k:'m2',c:'M2',n:'Estaciones'},
+  {k:'m3',c:'M3',n:'Aplicabilidad'},
+  {k:'m4',c:'M4',n:'Luminarias'},
+  {k:'m8',c:'M8',n:'Cierre'}
+];
+
+/* ============ Utilidades ============ */
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function pad(n){return (n<10?'0':'')+n;}
+function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function nowHM(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+function stamp(){var d=new Date();return today()+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+function fmtD(d){if(!d)return '';var p=String(d).split('-');return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:d;}
+function getP(o,p){return p.split('.').reduce(function(a,k){return a==null?a:a[k];},o);}
+function setP(o,p,v){var ks=p.split('.'),x=o;for(var i=0;i<ks.length-1;i++){if(x[ks[i]]==null)x[ks[i]]={};x=x[ks[i]];}x[ks[ks.length-1]]=v;}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(function(){t.hidden=true;},3200);}
+function rutOk(r){r=String(r||'').replace(/[.\s]/g,'').toUpperCase();var m=r.match(/^(\d{6,8})-?([\dK])$/);if(!m)return false;var s=0,f=2;for(var i=m[1].length-1;i>=0;i--){s+=(+m[1][i])*f;f=f===7?2:f+1;}var d=11-s%11;var dv=d===11?'0':d===10?'K':String(d);return dv===m[2];}
+async function sha256(buf){try{var h=await crypto.subtle.digest('SHA-256',buf);return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}catch(e){return '';}}
+function slug(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w\-]+/g,'_').replace(/_+/g,'_').slice(0,48)||'inspeccion';}
+
+/* ============ Coordenadas ============ */
+var WGS={a:6378137,f:1/298.257223563,k0:0.9996};
+function toUTM(lat,lon){
+  var a=WGS.a,f=WGS.f,k0=WGS.k0,e2=f*(2-f),ep2=e2/(1-e2);
+  var zone=Math.floor((lon+180)/6)+1,lon0=(zone-1)*6-180+3;
+  var p=lat*Math.PI/180,l=(lon-lon0)*Math.PI/180,s=Math.sin(p),c=Math.cos(p),t=Math.tan(p);
+  var N=a/Math.sqrt(1-e2*s*s),T=t*t,C=ep2*c*c,A=c*l;
+  var M=a*((1-e2/4-3*e2*e2/64-5*e2*e2*e2/256)*p-(3*e2/8+3*e2*e2/32+45*e2*e2*e2/1024)*Math.sin(2*p)+(15*e2*e2/256+45*e2*e2*e2/1024)*Math.sin(4*p)-(35*e2*e2*e2/3072)*Math.sin(6*p));
+  var E=k0*N*(A+(1-T+C)*Math.pow(A,3)/6+(5-18*T+T*T+72*C-58*ep2)*Math.pow(A,5)/120)+500000;
+  var Nn=k0*(M+N*t*(A*A/2+(5-T+9*C+4*C*C)*Math.pow(A,4)/24+(61-58*T+T*T+600*C-330*ep2)*Math.pow(A,6)/720));
+  if(lat<0)Nn+=10000000;
+  return {e:Math.round(E),n:Math.round(Nn),zone:zone,hemi:lat<0?'S':'N'};
+}
+function fromUTM(E,Nn,zone,south){
+  var a=WGS.a,f=WGS.f,k0=WGS.k0,e2=f*(2-f),ep2=e2/(1-e2),e1=(1-Math.sqrt(1-e2))/(1+Math.sqrt(1-e2));
+  var x=E-500000,y=south?Nn-10000000:Nn,lon0=(zone-1)*6-180+3;
+  var M=y/k0,mu=M/(a*(1-e2/4-3*e2*e2/64-5*e2*e2*e2/256));
+  var p1=mu+(3*e1/2-27*Math.pow(e1,3)/32)*Math.sin(2*mu)+(21*e1*e1/16-55*Math.pow(e1,4)/32)*Math.sin(4*mu)+(151*Math.pow(e1,3)/96)*Math.sin(6*mu);
+  var s=Math.sin(p1),c=Math.cos(p1),t=Math.tan(p1),N1=a/Math.sqrt(1-e2*s*s),T1=t*t,C1=ep2*c*c,R1=a*(1-e2)/Math.pow(1-e2*s*s,1.5),D=x/(N1*k0);
+  var lat=p1-(N1*t/R1)*(D*D/2-(5+3*T1+10*C1-4*C1*C1-9*ep2)*Math.pow(D,4)/24+(61+90*T1+298*C1+45*T1*T1-252*ep2-3*C1*C1)*Math.pow(D,6)/720);
+  var lon=(D-(1+2*T1+C1)*Math.pow(D,3)/6+(5-2*C1+28*T1-3*C1*C1+8*ep2+24*T1*T1)*Math.pow(D,5)/120)/c;
+  return {lat:lat*180/Math.PI,lon:lon0+lon*180/Math.PI};
+}
+function utmTxt(u){return u?('E '+u.e.toLocaleString('es-CL')+' · N '+u.n.toLocaleString('es-CL')+' · Huso '+u.zone+u.hemi):'';}
+function nmz(x){var n=String(x.n||''),c=String(x.c||'');return c&&n.toLowerCase().indexOf(c.toLowerCase())!==0?c+' '+n:n;}
+function hav(la1,lo1,la2,lo2){var R=6371008.8,r=Math.PI/180,dl=(la2-la1)*r,dn=(lo2-lo1)*r;var h=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dn/2)*Math.sin(dn/2);return 2*R*Math.asin(Math.sqrt(h));}
+
+/* ============ Capas ============ */
+var LAY={ready:false,err:'',apb:null,recoge:null,astro50:null,sitios:null};
+function decodeLayer(j){
+  var feats=j.f.map(function(f){
+    if(typeof f.g[0]==='number')return {p:f.p,pt:[f.g[0]/1e5,f.g[1]/1e5]};
+    var polys=f.g.map(function(poly){return poly.map(function(r){var out=new Float64Array(r.length),x=0,y=0;for(var i=0;i<r.length;i+=2){x+=r[i];y+=r[i+1];out[i]=x/1e5;out[i+1]=y/1e5;}return out;});});
+    var b=[180,90,-180,-90];
+    polys.forEach(function(poly){var r=poly[0];for(var i=0;i<r.length;i+=2){if(r[i]<b[0])b[0]=r[i];if(r[i]>b[2])b[2]=r[i];if(r[i+1]<b[1])b[1]=r[i+1];if(r[i+1]>b[3])b[3]=r[i+1];}});
+    return {p:f.p,polys:polys,bbox:b};
+  });
+  return {meta:j.meta,f:feats};
+}
+async function loadLayers(){
+  try{
+    var names=['apb','recoge','astro50','sitios'];
+    var res=await Promise.all(names.map(function(n){return fetch('layers/'+n+'.lay.json').then(function(r){if(!r.ok)throw new Error(n+': HTTP '+r.status);return r.json();});}));
+    names.forEach(function(n,i){LAY[n]=decodeLayer(res[i]);});
+    /* La capa de sitios trae cada sitio dos veces: se deja uno por nombre y ubicación */
+    var seen={};LAY.sitios.f=LAY.sitios.f.filter(function(f){var k=f.p.n+'|'+f.pt[0]+'|'+f.pt[1];if(seen[k])return false;seen[k]=1;return true;});
+    LAY.ready=true;
+  }catch(e){LAY.err=String(e&&e.message||e);}
+}
+function inRing(r,x,y){var c=false;for(var i=0,j=r.length-2;i<r.length;j=i,i+=2){var xi=r[i],yi=r[i+1],xj=r[j],yj=r[j+1];if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
+function inFeat(f,x,y){if(x<f.bbox[0]||x>f.bbox[2]||y<f.bbox[1]||y>f.bbox[3])return false;var c=false;f.polys.forEach(function(poly){poly.forEach(function(r){if(inRing(r,x,y))c=!c;});});return c;}
+function distEdge(f,lat,lon){
+  var kx=111320*Math.cos(lat*Math.PI/180),ky=110574,best=Infinity;
+  f.polys.forEach(function(poly){poly.forEach(function(r){
+    for(var i=0;i<r.length-2;i+=2){
+      var ax=(r[i]-lon)*kx,ay=(r[i+1]-lat)*ky,bx=(r[i+2]-lon)*kx,by=(r[i+3]-lat)*ky;
+      var dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy,t=L?Math.max(0,Math.min(1,-(ax*dx+ay*dy)/L)):0;
+      var px=ax+t*dx,py=ay+t*dy,d=px*px+py*py;if(d<best)best=d;
+    }
+  });});
+  return Math.sqrt(best);
+}
+function nearBox(f,lat,lon,m){var dy=m/110574,dx=m/(111320*Math.cos(lat*Math.PI/180));return !(lon<f.bbox[0]-dx||lon>f.bbox[2]+dx||lat<f.bbox[1]-dy||lat>f.bbox[3]+dy);}
+function zoneOf(lat,lon){
+  var z={apb:[],recoge:[],astro50:[],near5:[],borde:[],sitio:null,sitios100:0,capas:{}};
+  if(!LAY.ready)return null;
+  ['apb','recoge','astro50'].forEach(function(k){z.capas[k]=LAY[k].meta.version;});
+  LAY.apb.f.forEach(function(f){
+    if(!nearBox(f,lat,lon,5000))return;
+    var inside=inFeat(f,lon,lat),d=distEdge(f,lat,lon);
+    var item={n:f.p.n,c:f.p.c,a:f.p.a||'',src:f.p.f||'',d:Math.round(d)};
+    if(inside)z.apb.push(item);else if(d<=5000)z.near5.push(item);
+    if(d<=100)z.borde.push(item);
+  });
+  LAY.recoge.f.forEach(function(f){if(nearBox(f,lat,lon,0)&&inFeat(f,lon,lat)){var d=distEdge(f,lat,lon);z.recoge.push({n:f.p.n,a:f.p.a,d:Math.round(d)});if(d<=100)z.borde.push({n:'Plan RECOGE '+f.p.n,c:'RECOGE',d:Math.round(d)});}});
+  LAY.astro50.f.forEach(function(f){if(nearBox(f,lat,lon,0)&&inFeat(f,lon,lat))z.astro50.push({n:f.p.n,a:f.p.a});});
+  var best=null;LAY.sitios.f.forEach(function(f){var d=hav(lat,lon,f.pt[1],f.pt[0]);if(d<=100000)z.sitios100++;if(!best||d<best.d)best={n:f.p.n,t:f.p.t,m:f.p.m,d:d};});
+  if(best)z.sitio={n:best.n,t:best.t,m:best.m,km:Math.round(best.d/100)/10};
+  var dedup={};z.apb=z.apb.filter(function(i){var k=i.c+'|'+i.n;if(dedup[k])return false;dedup[k]=1;return true;});
+  dedup={};z.near5=z.near5.filter(function(i){var k=i.c+'|'+i.n;if(dedup[k])return false;dedup[k]=1;return true;}).sort(function(a,b){return a.d-b.d;});
+  return z;
+}
+
+/* ============ Almacenamiento ============ */
+var STORE={db:null,mem:{kv:{},photos:{}},persist:false};
+STORE.open=function(){return new Promise(function(res){
+  try{var r=indexedDB.open('inspeccion-luminica',1);
+    r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');if(!d.objectStoreNames.contains('photos'))d.createObjectStore('photos');};
+    r.onsuccess=function(){STORE.db=r.result;STORE.persist=true;res();};
+    r.onerror=function(){res();};r.onblocked=function(){res();};
+  }catch(e){res();}
+});};
+STORE.get=function(s,k){var self=this;return new Promise(function(res){if(!self.db)return res(self.mem[s][k]);try{var q=self.db.transaction(s).objectStore(s).get(k);q.onsuccess=function(){res(q.result);};q.onerror=function(){res(self.mem[s][k]);};}catch(e){res(self.mem[s][k]);}});};
+STORE.put=function(s,k,v){var self=this;self.mem[s][k]=v;return new Promise(function(res){if(!self.db)return res(false);try{var tx=self.db.transaction(s,'readwrite');tx.objectStore(s).put(v,k);tx.oncomplete=function(){res(true);};tx.onerror=function(){res(false);};}catch(e){res(false);}});};
+STORE.del=function(s,k){var self=this;delete self.mem[s][k];return new Promise(function(res){if(!self.db)return res();try{var tx=self.db.transaction(s,'readwrite');tx.objectStore(s).delete(k);tx.oncomplete=function(){res();};tx.onerror=function(){res();};}catch(e){res();}});};
+
+/* ============ Modelo ============ */
+function blankInsp(){return{
+  id:uid(),creada:stamp(),app:APP_VER,reglas:RULES_VER,ejemplo:false,estado:'abierta',cierre:null,exportes:[],anot:[],fotoSeq:0,
+  prep:{uf:'',titular:'',rut:'',domicilio:'',correo:'',telefono:'',rep:'',repRut:'',repDom:'',repCorreo:'',region:'',comuna:'',direccion:'',
+    motivo:'',motivoTipo:'',motivoDet:'',materias:MATERIAS.slice(0,4),materiaOtra:'',instrumentos:INSTRUMENTOS.slice(0,2),rca:'',medira:'',
+    equipo:{tipo:'',marca:'',modelo:'',serie:'',certN:'',lab:'',certF:'',fotos:[]}},
+  ejec:{fecha:today(),hIni:'',hFin:'',estadoOp:'',enc:{nombre:'',rut:'',dom:'',tel:'',correo:''},oposicion:'',fuerza:'',colab:'',trato:'',
+    reunion:'',reuA:'',reuB:'',reuC:'',reuD:'',reuCausa:'',hEnc:'',tIni:'',humIni:'',tFin:'',humFin:'',nub:'',obs:'',
+    fisc:[{nombre:'',org:'Superintendencia del Medio Ambiente'}],asist:[]},
+  est:[],
+  aplic:{fuente:'',finst:'',finstNI:false,respaldo:'',respFotos:[],seia:'',astroDecl:'',comunaAstro:'',regVirg:'',ext5:'',ext5Res:'',recogeLuz:{}},
+  lums:[],
+  docs:{sel:{},extra:[],plazo:'10',direccion:''}
+};}
+function newEst(I){var n=I.est.length+1;return{id:'E'+n,n:'',desc:'',lat:null,lon:null,acc:null,ts:'',manual:false,utm:null,zona:null,fotos:[]};}
+function newLum(I){var n=I.lums.length+1;return{id:'L'+n,est:(I.est[0]||{}).id||'',tipo:'',cant:'',lampara:'',marca:'',modelo:'',pot:'',finst:'',ubic:'',certN:'',certF:'',ni:{},
+  certTipo:'',c1i:'',c1s:'',sinMuros:false,reorient:false,art4:'',hemi:'',orient:{},incl:'',pubHoriz:'',pubMorada:'',canon70:'',exDisp:'',exFlujo:'',tcc:'',flujo:'',recambio:'',frec:'',obs:'',fotos:[]};}
+
+function sampleInsp(){
+  var I=blankInsp();I.ejemplo=true;
+  Object.assign(I.prep,{uf:'Planta de ejemplo Borde Costero (EJEMPLO)',titular:'Empresa de Ejemplo S.A.',rut:'76.000.000-K',domicilio:'Av. Ejemplo 123, Mejillones',correo:'contacto@ejemplo.cl',
+    region:'Antofagasta',comuna:'Mejillones',direccion:'Sector industrial costero',motivo:'no_programada',motivoTipo:'denuncia',motivoDet:'Denuncia ciudadana de ejemplo por iluminación nocturna hacia el borde costero.',medira:'no'});
+  I.prep.materias=MATERIAS.slice(0,4).concat([MATERIAS[5]]);
+  Object.assign(I.ejec,{hIni:'22:40',estadoOp:'En operación',oposicion:'no',fuerza:'no',colab:'si',trato:'si',reunion:'si',reuA:'si',reuB:'si',reuC:'si',reuD:'si',hEnc:'19:55'});
+  I.ejec.enc.nombre='Encargado de turno (ejemplo)';
+  I.ejec.fisc=[{nombre:'Fiscalizador de ejemplo',org:'Superintendencia del Medio Ambiente'}];
+  var e=newEst(I);Object.assign(e,{n:'Acceso norte y patio de acopio',desc:'Patio de acopio a 300 m de la línea de costa.',lat:-23.1027,lon:-70.4421,acc:8,ts:stamp(),manual:true});
+  I.est.push(e);
+  Object.assign(I.aplic,{fuente:'existente',finst:'2021-03-15',respaldo:'acta',seia:'no'});
+  var l=newLum(I);Object.assign(l,{est:'E1',tipo:'industrial',cant:'24',lampara:'led',marca:'Proyector LED (ejemplo)',modelo:'PX-400',pot:'400',finst:'2021-03-15',ubic:'Torres del patio de acopio',
+    certTipo:'nc',c1i:'si',c1s:'si',hemi:'si',orient:{mar:true,via:true},incl:'25',tcc:'5000'});
+  l.ni={certN:true,certF:true};
+  I.lums.push(l);
+  return I;
+}
+
+/* ============ Estado de la app ============ */
+var APP={index:[],I:null,mod:'inicio',night:false,dl:null,photoURL:{}};
+var saveT=null;
+function touch(){if(!APP.I)return;APP.I.mod=stamp();clearTimeout(saveT);saveT=setTimeout(saveNow,350);}
+async function saveNow(){if(!APP.I)return;var I=APP.I;try{localStorage.setItem('il:cur',I.id);}catch(e){}var ok=await STORE.put('kv','insp:'+I.id,JSON.parse(JSON.stringify(I)));
+  var ix=APP.index.find(function(x){return x.id===I.id;});var row={id:I.id,uf:I.prep.uf,fecha:I.ejec.fecha,estado:I.estado,ejemplo:I.ejemplo,mod:I.mod||I.creada};
+  if(ix)Object.assign(ix,row);else APP.index.unshift(row);await STORE.put('kv','index',APP.index);setStatus();return ok;}
+function setStatus(){
+  var s=document.getElementById('status');
+  var st=STORE.persist?'Guardado en este dispositivo':'Sin almacenamiento local: exporte el paquete antes de salir';
+  if(APP.I&&APP.I.estado==='cerrada')st='Inspección cerrada · solo lectura';
+  s.textContent=(LAY.ready?'':LAY.err?'Capas no disponibles · ':'Cargando capas… · ')+st;
+}
+function ro(){return APP.I&&APP.I.estado==='cerrada';}
+
+/* ============ Validación (G1 de terreno) ============ */
+function need(I){
+  var m={m0:[],m1:[],m2:[],m3:[],m4:[]},alerts=[];
+  var p=I.prep,e=I.ejec,a=I.aplic;
+  if(!p.uf)m.m0.push('Unidad fiscalizable');
+  if(!p.titular)m.m0.push('Titular');
+  if(!rutOk(p.rut))m.m0.push('RUT del titular válido');
+  if(!p.domicilio)m.m0.push('Domicilio del titular para notificación');
+  if(!p.motivo)m.m0.push('Motivo de la actividad');
+  if(!(p.materias.length||p.materiaOtra))m.m0.push('Al menos una materia específica');
+  if(!p.instrumentos.length)m.m0.push('Al menos un instrumento fiscalizado');
+  if(!p.medira)m.m0.push('Indicar si habrá medición');
+  if(p.medira==='si'){var q=p.equipo;['tipo','marca','modelo','serie','certN','certF'].forEach(function(k){if(!q[k])m.m0.push('Equipo de medición: '+{tipo:'tipo',marca:'marca',modelo:'modelo',serie:'N° de serie',certN:'N° de certificado de calibración',certF:'fecha del certificado de calibración'}[k]);});if(!q.fotos.length)m.m0.push('Foto del certificado de calibración');}
+  if(!e.fecha)m.m1.push('Fecha de inspección');
+  if(!e.hIni)m.m1.push('Hora de inicio');
+  if(!e.estadoOp)m.m1.push('Estado operacional');
+  if(!e.enc.nombre)m.m1.push('Encargado durante la inspección');
+  [['oposicion','Oposición al ingreso'],['fuerza','Auxilio de la fuerza pública'],['colab','Colaboración'],['reunion','Reunión informativa']].forEach(function(x){if(!e[x[0]])m.m1.push(x[1]);});
+  if(e.reunion==='si')['reuA','reuB','reuC','reuD'].forEach(function(k,i){if(!e[k])m.m1.push('Reunión informativa, literal '+'abcd'[i]+')');});
+  if(e.reunion==='no'&&!e.reuCausa)m.m1.push('Causa de no realizar la reunión informativa');
+  if(p.medira==='si'){if(!e.hEnc)m.m1.push('Hora de encendido del alumbrado público');if(!e.tIni||!e.humIni)m.m1.push('Temperatura y humedad al inicio');}
+  if(!e.fisc.some(function(f){return f.nombre;}))m.m1.push('Fiscalizador encargado');
+  if(!I.est.length)m.m2.push('Al menos una estación');
+  I.est.forEach(function(s){
+    if(s.lat==null)m.m2.push(s.id+': coordenadas');
+    if(!s.n)m.m2.push(s.id+': nombre o descripción');
+    if(s.acc!=null&&s.acc>20)alerts.push(s.id+': precisión del GPS de '+Math.round(s.acc)+' m (sobre 20 m).');
+    if(s.manual&&s.lat!=null)alerts.push(s.id+': coordenadas ingresadas a mano; verifique contra la referencia del lugar.');
+    if(s.zona&&s.zona.borde.length)alerts.push(s.id+': a menos de 100 m del límite de '+s.zona.borde.map(function(b){return b.n;}).join(', ')+'. Verificar con cartografía oficial.');
+  });
+  if(!a.fuente)m.m3.push('Fuente nueva o existente según el encargado');
+  if(!a.finst&&!a.finstNI)m.m3.push('Fecha de instalación o "no informada"');
+  if(!a.respaldo)m.m3.push('Respaldo de la fecha de instalación');
+  if(a.respaldo==='foto'&&!a.respFotos.length)m.m3.push('Foto del respaldo de la fecha');
+  var Z=zonesAll(I);
+  if((Z.astro||Z.sitioCerca)&&!a.astroDecl)m.m3.push('Área Astronómica declarada: confirmar');
+  if(Z.near5.length&&!a.ext5)m.m3.push('Extensión de 5 km: confirmar');
+  Z.recoge.forEach(function(r){if(!a.recogeLuz[r])m.m3.push('Plan RECOGE '+r+': ¿identifica la luminosidad como amenaza?');});
+  if(!I.lums.length)m.m4.push('Al menos un grupo de luminarias');
+  I.lums.forEach(function(l){
+    var id=l.id+': ';
+    if(!l.tipo)m.m4.push(id+'tipo de alumbrado');
+    if(!l.est)m.m4.push(id+'estación');
+    if(!(+l.cant>0))m.m4.push(id+'cantidad');
+    if(!l.lampara)m.m4.push(id+'tipo de lámpara');
+    if(!l.certTipo)m.m4.push(id+'certificación');
+    if(!l.c1i)m.m4.push(id+'instalación a la intemperie');
+    if(!l.c1s)m.m4.push(id+'susceptibilidad de producir contaminación lumínica');
+    ['marca','modelo','pot','finst','ubic','certN','certF'].forEach(function(k){if(!l[k]&&!(l.ni||{})[k])m.m4.push(id+{marca:'marca',modelo:'modelo',pot:'potencia',finst:'fecha de instalación',ubic:'ubicación',certN:'N° de certificado',certF:'fecha de certificación'}[k]+' o "no informado"');});
+    if(l.tipo==='pub_luminoso'){if(!l.pubHoriz)m.m4.push(id+'orientación sobre la horizontal');if(!l.pubMorada)m.m4.push(id+'orientación hacia la morada');}
+    else if(l.tipo==='canon'){if(!l.canon70)m.m4.push(id+'proyección sobre γ = 70°');}
+    else if(l.tipo){if(!l.hemi)m.m4.push(id+'proyección al hemisferio superior');}
+    if(!Object.keys(l.orient||{}).some(function(k){return l.orient[k];}))m.m4.push(id+'orientación del flujo');
+    if(l.tipo==='ornamental'&&l.exDisp&&!l.exFlujo)m.m4.push(id+'flujo para la exención ornamental');
+    if(!l.fotos.length)m.m4.push(id+'al menos una fotografía');
+  });
+  return {m:m,alerts:alerts,total:m.m0.length+m.m1.length+m.m2.length+m.m3.length+m.m4.length};
+}
+function zonesAll(I){
+  var r={apb:[],recoge:[],astro:false,near5:[],sitioCerca:false};
+  I.est.forEach(function(s){var z=s.zona;if(!z)return;
+    z.apb.forEach(function(x){if(!r.apb.some(function(y){return y.n===x.n&&y.c===x.c;}))r.apb.push(x);});
+    z.recoge.forEach(function(x){if(r.recoge.indexOf(x.n)<0)r.recoge.push(x.n);});
+    z.near5.forEach(function(x){if(!r.near5.some(function(y){return y.n===x.n;}))r.near5.push(x);});
+    if(z.astro50.length)r.astro=true;if(z.sitio&&z.sitio.km<=100)r.sitioCerca=true;});
+  return r;
+}
+function docsAuto(I){
+  var t={},L=I.lums,has=function(tp){return L.some(function(l){return tp.indexOf(l.tipo)>=0;});};
+  t.d1=true;t.d3=true;t.d4=true;
+  t.d2=L.some(function(l){return l.certTipo==='nc'||(l.ni||{}).certN||(l.ni||{}).certF;});
+  t.d5=I.aplic.finstNI||I.aplic.respaldo==='acta'||L.some(function(l){return (l.ni||{}).finst;});
+  t.d6=has(['ornamental','deportivo','pub_luminoso','pub_iluminado','industrial']);
+  t.d7=has(['industrial']);t.d8=false;t.d9=has(['deportivo']);t.d10=has(['pub_luminoso']);t.d11=false;
+  return t;
+}
+function docsList(I){var auto=docsAuto(I),sel=I.docs.sel;return DOCS.filter(function(d){return sel[d.k]===undefined?auto[d.k]:sel[d.k];}).map(function(d){return d.t;}).concat(I.docs.extra.filter(Boolean));}
+
+/* ============ Fotos ============ */
+async function addPhotos(files,refPath,ctx){
+  var I=APP.I;if(!I||ro())return;
+  for(var i=0;i<files.length;i++){
+    var f=files[i];var buf=await f.arrayBuffer();var h=await sha256(buf);
+    I.fotoSeq=(I.fotoSeq||0)+1;var id='F'+String(I.fotoSeq).padStart(3,'0');
+    var rec={id:id,insp:I.id,type:f.type||'image/jpeg',name:f.name||'',size:f.size,hash:h,ts:stamp(),ctx:ctx||'',buf:buf};
+    await STORE.put('photos',I.id+':'+id,rec);
+    var arr=getP(I,refPath);arr.push({id:id,hash:h,ts:rec.ts,desc:''});
+  }
+  touch();render();
+}
+async function photoURL(I,id){
+  var k=I.id+':'+id;if(APP.photoURL[k])return APP.photoURL[k];
+  var r=await STORE.get('photos',k);if(!r)return '';
+  var u=URL.createObjectURL(new Blob([r.buf],{type:r.type}));APP.photoURL[k]=u;return u;
+}
+function thumbs(path,ctx,label){
+  var arr=getP(APP.I,path)||[];
+  var h='<div class="thumbs">'+arr.map(function(ph,i){return '<div class="thumb"><img data-ph="'+ph.id+'" alt="Fotografía '+ph.id+'"><span>'+ph.id+'</span>'+(ro()?'':'<button type="button" aria-label="Quitar '+ph.id+'" data-delph="'+path+'|'+i+'">×</button>')+'</div>';}).join('');
+  if(!ro())h+='<label class="addphoto"><input type="file" accept="image/*" capture="environment" multiple data-photo="'+path+'" data-ctx="'+esc(ctx||'')+'">'+(label||'Agregar foto')+'</label>';
+  return h+'</div>';
+}
+async function hydrateThumbs(){var I=APP.I;if(!I)return;var imgs=document.querySelectorAll('img[data-ph]');for(var i=0;i<imgs.length;i++){var u=await photoURL(I,imgs[i].getAttribute('data-ph'));if(u)imgs[i].src=u;}}
+
+/* ============ Controles ============ */
+function fld(path,label,o){o=o||{};var I=APP.I,v=getP(I,path);var miss=o.req&&(v===''||v==null);
+  var lab='<span class="lb">'+label+(o.req?' <span class="req">OBL.</span>':'')+(o.dest?'<span class="dest">'+o.dest+'</span>':'')+'</span>';
+  var inp;
+  if(o.type==='area')inp='<textarea id="'+fid(path)+'" data-b="'+path+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+'>'+esc(v)+'</textarea>';
+  else if(o.opts)inp='<select id="'+fid(path)+'" data-b="'+path+'"><option value="">—</option>'+o.opts.map(function(x){return '<option value="'+x[0]+'"'+(String(v)===x[0]?' selected':'')+'>'+esc(x[1])+'</option>';}).join('')+'</select>';
+  else inp='<input id="'+fid(path)+'" data-b="'+path+'" type="'+(o.type||'text')+'"'+(o.im?' inputmode="'+o.im+'"':'')+' value="'+esc(v)+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+(o.ac?' autocomplete="'+o.ac+'"':' autocomplete="off"')+'>';
+  return '<label class="f'+(miss?' miss':'')+'" for="'+fid(path)+'">'+lab+inp+(o.hint?'<p class="hint">'+o.hint+'</p>':'')+'</label>';}
+function fid(p){return 'f-'+p.replace(/[^\w]/g,'-');}
+function seg(path,label,opts,o){o=o||{};var v=getP(APP.I,path);var miss=o.req&&!v;
+  return '<div class="f"><span class="lb">'+label+(o.req?' <span class="req">OBL.</span>':'')+(o.dest?'<span class="dest">'+o.dest+'</span>':'')+'</span><div class="seg'+(miss?' miss':'')+'" role="group" aria-label="'+esc(label)+'">'+
+    opts.map(function(x){return '<button type="button" data-seg="'+path+'" data-v="'+x[0]+'" aria-pressed="'+(String(v)===x[0])+'">'+esc(x[1])+'</button>';}).join('')+'</div>'+(o.hint?'<p class="hint">'+o.hint+'</p>':'')+'</div>';}
+var SN=[['si','Sí'],['no','No']];
+function chk(path,label){return '<label class="chk" for="'+fid(path)+'"><input type="checkbox" id="'+fid(path)+'" data-cb="'+path+'"'+(getP(APP.I,path)?' checked':'')+'><span>'+label+'</span></label>';}
+
+/* ============ Vistas ============ */
+function vInicio(){
+  var h='<h2>Inspecciones</h2><p class="lede">Prototipo de terreno para inspecciones bajo el D.S. N°1/2022. Cada inspección se guarda en este dispositivo y se exporta como borrador de acta (.docx) y paquete de datos (.zip).</p>';
+  h+='<div class="row"><button class="btn pri" type="button" data-act="new">Nueva inspección</button>'+(APP.index.some(function(x){return x.ejemplo;})?'':'<button class="btn" type="button" data-act="sample">Cargar ejemplo</button>')+'</div>';
+  if(!APP.index.length)h+='<div class="card"><p class="lede">No hay inspecciones guardadas en este dispositivo. Cree una nueva o cargue el ejemplo para recorrer los módulos.</p></div>';
+  h+='<div class="list">'+APP.index.map(function(x){return '<button class="insp" type="button" data-open="'+x.id+'"><b>'+esc(x.uf||'Sin nombre')+'</b><small>'+fmtD(x.fecha)+' · '+(x.estado==='cerrada'?'Cerrada':'Abierta')+(x.ejemplo?' · Ejemplo':'')+'</small></button>';}).join('')+'</div>';
+  h+='<div class="card"><h3>Capas cargadas</h3>'+(LAY.ready?'<ul class="plain">'+['apb','recoge','astro50'].map(function(k){return '<li>'+esc(LAY[k].meta.version)+' · '+LAY[k].f.length+' polígonos</li>';}).join('')+'<li>Sitios astronómicos · '+LAY.sitios.f.length+' sitios (sin duplicados ni coordenadas nulas)</li></ul><p class="hint">Simplificadas a unos 30 m, coherente con la escala 1:50.000. No sustituyen los decretos ni los planos oficiales.</p>':LAY.err?'<div class="note bad">No se pudieron cargar las capas ('+esc(LAY.err)+'). La asignación de zona no estará disponible.</div>':'<p class="hint">Cargando…</p>')+'</div>';
+  h+='<div class="card"><h3>Versión</h3><dl class="kv"><dt>Aplicación</dt><dd>'+APP_VER+' · fase 1 (M0–M4, M8)</dd><dt>Reglas</dt><dd>'+RULES_VER+'</dd><dt>Almacenamiento</dt><dd>'+(STORE.persist?'IndexedDB del navegador':'Memoria temporal')+'</dd></dl></div>';
+  return h;
+}
+function head(m,t,p){return '<div><span class="pill acc">'+m+'</span><h2>'+t+'</h2></div><p class="lede">'+p+'</p>';}
+function vM0(){
+  var I=APP.I,p=I.prep,h=head('M0','Preparación','Antes de salir. Identificación de la unidad fiscalizable, motivo, materias, instrumentos y equipo de medición.');
+  h+='<div class="card"><h3>Unidad fiscalizable <span>Acta 1.4–1.8 · IFA 2.1</span></h3><div class="grid">'+
+    fld('prep.uf','Nombre según catastro SMA',{req:1})+fld('prep.titular','Titular',{req:1})+fld('prep.rut','RUT del titular',{req:1,ph:'76.123.456-7',hint:p.rut&&!rutOk(p.rut)?'RUT no válido.':''})+
+    fld('prep.domicilio','Domicilio para notificación',{req:1})+fld('prep.correo','Correo electrónico',{type:'email'})+fld('prep.telefono','Teléfono',{type:'tel'})+
+    fld('prep.region','Región')+fld('prep.comuna','Comuna')+fld('prep.direccion','Ubicación de la unidad')+'</div>'+
+    '<div class="grid">'+fld('prep.rep','Representante legal')+fld('prep.repRut','RUT del representante')+fld('prep.repDom','Domicilio del representante')+fld('prep.repCorreo','Correo del representante',{type:'email'})+'</div></div>';
+  h+='<div class="card"><h3>Motivo <span>Acta 2 · IFA 4.1</span></h3>'+seg('prep.motivo','Actividad',[['programada','Programada'],['no_programada','No programada']],{req:1})+
+    (p.motivo==='no_programada'?seg('prep.motivoTipo','Origen',[['denuncia','Denuncia'],['autodenuncia','Autodenuncia'],['oficio','De oficio'],['otro','Otro']]):'')+
+    fld('prep.motivoDet','Detalle',{type:'area',ph:p.motivo==='programada'?'Resolución SMA que fija el programa de fiscalización':'N° de denuncia, fecha y hechos denunciados'})+'</div>';
+  h+='<div class="card"><h3>Materia específica <span>Acta 3 · IFA 4.2</span></h3>'+MATERIAS.map(function(m,i){return '<label class="chk"><input type="checkbox" data-list="prep.materias" data-v="'+esc(m)+'"'+(p.materias.indexOf(m)>=0?' checked':'')+'><span>'+esc(m)+'</span></label>';}).join('')+fld('prep.materiaOtra','Otra materia')+'</div>';
+  h+='<div class="card"><h3>Instrumentos fiscalizados <span>Acta 4 · IFA 3</span></h3>'+INSTRUMENTOS.map(function(m){return '<label class="chk"><input type="checkbox" data-list="prep.instrumentos" data-v="'+esc(m)+'"'+(p.instrumentos.indexOf(m)>=0?' checked':'')+'><span>'+esc(m)+'</span></label>';}).join('')+fld('prep.rca','RCA u otro instrumento',{ph:'Res. Ex. N° … que califica el proyecto'})+'</div>';
+  h+='<div class="card"><h3>Equipo de medición <span>PCL N°2 §5 · PCL N°3 §5</span></h3>'+seg('prep.medira','¿Habrá medición en esta inspección?',SN,{req:1,hint:'Las mediciones se registran en la fase 2 (M5). Aquí se deja preparado el equipo y su calibración.'});
+  if(p.medira==='si'){
+    h+='<div class="grid">'+fld('prep.equipo.tipo','Tipo',{req:1,opts:[['luminancimetro','Luminancímetro'],['luxometro','Luxómetro'],['espectro','Espectrorradiómetro']]})+fld('prep.equipo.marca','Marca',{req:1})+fld('prep.equipo.modelo','Modelo',{req:1})+fld('prep.equipo.serie','N° de serie',{req:1})+
+      fld('prep.equipo.certN','N° certificado de calibración',{req:1})+fld('prep.equipo.lab','Laboratorio')+fld('prep.equipo.certF','Fecha de emisión',{req:1,type:'date'})+'</div>';
+    var cf=p.equipo.certF;if(cf){var age=(new Date(I.ejec.fecha||today())-new Date(cf))/(365.25*864e5);if(age>2)h+='<div class="note bad"><b>Calibración con más de 2 años.</b> El PCL N°3 no admite mediciones de avisos y letreros con este certificado (regla R06).</div>';}
+    h+='<div class="f"><span class="lb">Foto del certificado <span class="req">OBL.</span></span>'+thumbs('prep.equipo.fotos','certificado de calibración','Fotografiar certificado')+'</div>';
+  }
+  return h+'</div>';
+}
+function vM1(){
+  var I=APP.I,e=I.ejec,h=head('M1','Ejecución de la inspección','Datos de inicio en terreno, reunión informativa y participantes.');
+  h+='<div class="card"><h3>Fecha y hora <span>Acta 1.1–1.3</span></h3><div class="grid">'+fld('ejec.fecha','Fecha',{req:1,type:'date'})+
+    '<div class="f"><span class="lb">Hora de inicio <span class="req">OBL.</span></span><div class="row"><input id="f-ejec-hIni" data-b="ejec.hIni" type="time" value="'+esc(e.hIni)+'" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:10px;font-size:16px">'+(ro()?'':'<button class="btn" type="button" data-now="ejec.hIni">Ahora</button>')+'</div></div>'+
+    '<div class="f"><span class="lb">Hora de término<span class="dest">al cierre</span></span><div class="row"><input id="f-ejec-hFin" data-b="ejec.hFin" type="time" value="'+esc(e.hFin)+'" style="flex:1;min-width:0;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:10px;font-size:16px">'+(ro()?'':'<button class="btn" type="button" data-now="ejec.hFin">Ahora</button>')+'</div></div>'+
+    fld('ejec.estadoOp','Estado operacional',{req:1,opts:[['En operación','En operación'],['Operación parcial','Operación parcial'],['Sin operación','Sin operación'],['En construcción','En construcción']]})+'</div></div>';
+  h+='<div class="card"><h3>Encargado durante la inspección <span>Acta 1.9</span></h3><div class="grid">'+fld('ejec.enc.nombre','Nombre',{req:1})+fld('ejec.enc.rut','RUT')+fld('ejec.enc.dom','Domicilio')+fld('ejec.enc.tel','Teléfono',{type:'tel'})+fld('ejec.enc.correo','Correo',{type:'email'})+'</div></div>';
+  h+='<div class="card"><h3>Ejecución <span>Acta 5 · IFA 4.3.1</span></h3>'+seg('ejec.oposicion','Oposición al ingreso',SN,{req:1})+seg('ejec.fuerza','Auxilio de la fuerza pública',SN,{req:1})+seg('ejec.colab','Colaboración de los fiscalizados',SN,{req:1})+seg('ejec.trato','Trato respetuoso y deferente',SN)+
+    seg('ejec.reunion','Reunión informativa',SN,{req:1});
+  if(e.reunion==='si')h+=seg('ejec.reuA','a) Se informaron las materias objeto de la fiscalización',SN,{req:1})+seg('ejec.reuB','b) Se informó la normativa ambiental pertinente',SN,{req:1})+seg('ejec.reuC','c) Se informó el orden de la inspección',SN,{req:1})+seg('ejec.reuD','d) Se explicaron los métodos de registro',SN,{req:1});
+  if(e.reunion==='no')h+=fld('ejec.reuCausa','Causa',{req:1,type:'area'});
+  h+='</div>';
+  h+='<div class="card"><h3>Condiciones nocturnas <span>PCL N°2 §6.1.2 y §6.2</span></h3><div class="grid">'+fld('ejec.hEnc','Hora de encendido del alumbrado público',{type:'time',req:I.prep.medira==='si',hint:'Las mediciones se hacen al menos 1 hora después (regla R05).'})+
+    fld('ejec.tIni','Temperatura inicial (°C)',{im:'decimal',req:I.prep.medira==='si'})+fld('ejec.humIni','Humedad inicial (%)',{im:'decimal',req:I.prep.medira==='si'})+fld('ejec.tFin','Temperatura final (°C)',{im:'decimal'})+fld('ejec.humFin','Humedad final (%)',{im:'decimal'})+
+    fld('ejec.nub','Nubosidad',{opts:[['Despejado','Despejado'],['Parcial','Parcial'],['Cubierto','Cubierto'],['Neblina o camanchaca','Neblina o camanchaca']]})+'</div>'+fld('ejec.obs','Observaciones de la ejecución',{type:'area',dest:'Acta 6'})+'</div>';
+  h+='<div class="card"><h3>Fiscalizadores <span>Acta 9 · el encargado primero</span></h3>'+e.fisc.map(function(f,i){return '<div class="grid">'+fld('ejec.fisc.'+i+'.nombre',(i?'Fiscalizador ':'Encargado ')+(i+1),{req:!i})+fld('ejec.fisc.'+i+'.org','Organismo')+'</div>'+(i&&!ro()?'<div><button class="btn dan" type="button" data-rm="ejec.fisc|'+i+'">Quitar</button></div>':'');}).join('')+(ro()?'':'<div><button class="btn" type="button" data-add="fisc">Agregar fiscalizador</button></div>')+'</div>';
+  h+='<div class="card"><h3>Otros asistentes <span>Acta 10</span></h3>'+e.asist.map(function(f,i){return '<div class="grid">'+fld('ejec.asist.'+i+'.nombre','Nombre')+fld('ejec.asist.'+i+'.inst','Institución o empresa')+'</div>'+(ro()?'':'<div><button class="btn dan" type="button" data-rm="ejec.asist|'+i+'">Quitar</button></div>');}).join('')+(ro()?'':'<div><button class="btn" type="button" data-add="asist">Agregar asistente</button></div>')+'</div>';
+  return h;
+}
+function zoneHTML(z){
+  if(!z)return '<p class="hint">'+(LAY.ready?'Sin coordenadas.':'La zona se asignará cuando carguen las capas.')+'</p>';
+  var h='<div class="zones">';
+  if(!z.apb.length&&!z.recoge.length)h+='<div class="zone"><span class="pill">APB</span><span>Fuera de Áreas de Protección para la Biodiversidad con capa</span></div>';
+  z.apb.forEach(function(x){h+='<div class="zone"><span class="pill bad">APB</span><span><b>'+esc(nmz(x))+'</b></span><small>'+esc([x.a,x.src].filter(Boolean).join(' · '))+' · a '+x.d.toLocaleString('es-CL')+' m del límite</small></div>';});
+  z.recoge.forEach(function(x){h+='<div class="zone"><span class="pill warn">RECOGE</span><span><b>Plan '+esc(x.n)+'</b></span><small>'+esc(x.a)+' · confirmar en M3 si identifica la luminosidad como amenaza</small></div>';});
+  z.near5.slice(0,3).forEach(function(x){h+='<div class="zone"><span class="pill warn">≤ 5 km</span><span>'+esc(nmz(x))+'</span><small>a '+(x.d/1000).toFixed(1).replace('.',',')+' km · confirmar extensión de 5 km en M3</small></div>';});
+  z.astro50.forEach(function(x){h+='<div class="zone"><span class="pill acc">Ref. 50 km</span><span>'+esc(x.n)+'</span><small>Referencia técnica, sin efecto jurídico</small></div>';});
+  if(z.sitio)h+='<div class="zone"><span class="pill">Astro</span><span>Sitio más cercano: '+esc(z.sitio.n)+' a '+String(z.sitio.km).replace('.',',')+' km</span><small>'+z.sitios100+' sitio(s) a 100 km o menos · comuna cercana o lejana según listado del MMA</small></div>';
+  z.borde.forEach(function(x){h+='<div class="note">A '+x.d+' m del límite de <b>'+esc(x.n)+'</b>. Verificar con cartografía oficial (regla R15).</div>';});
+  return h+'</div>';
+}
+function vM2(){
+  var I=APP.I,h=head('M2','Estaciones y recorrido','Cada estación es un lugar geográfico de inspección (IFA 4.3.3). La zona se asigna automáticamente con las capas.');
+  if(IN_ARTIFACT)h+='<div class="note info">En esta vista de revisión el navegador no entrega la ubicación del teléfono. Ingrese las coordenadas a mano o pegue las de la app Mapas. Instalada en el teléfono, la aplicación usa el GPS.</div>';
+  I.est.forEach(function(s,i){
+    var P='est.'+i;
+    h+='<article class="item"><header><span class="id">'+s.id+'</span><span class="nm">'+esc(s.n||'Estación sin nombre')+'</span>'+(s.lat!=null?'<span class="pill ok">Georreferenciada</span>':'<span class="pill warn">Sin coordenadas</span>')+'</header><div class="body">'+
+      fld(P+'.n','Nombre de la estación',{req:1,dest:'IFA 4.3.3'})+fld(P+'.desc','Descripción',{type:'area'})+
+      '<div class="f"><span class="lb">Coordenadas <span class="req">OBL.</span><span class="dest">UTM WGS84</span></span>'+
+      (s.lat!=null?'<dl class="kv"><dt>UTM</dt><dd class="mono">'+utmTxt(s.utm)+'</dd><dt>Geográficas</dt><dd class="mono">'+s.lat.toFixed(5)+', '+s.lon.toFixed(5)+'</dd><dt>Origen</dt><dd>'+(s.manual?'Ingreso manual':'GPS · precisión '+Math.round(s.acc)+' m')+' · '+esc(s.ts)+'</dd></dl>':'')+
+      (ro()?'':'<div class="row"><button class="btn pri" type="button" data-gps="'+i+'">Usar GPS</button><button class="btn" type="button" data-manual="'+i+'">Ingresar a mano</button></div>')+
+      '<div id="man-'+i+'" hidden><div class="grid"><label class="f"><span class="lb">Latitud, longitud (decimal)</span><input id="ll-'+i+'" inputmode="text" placeholder="-23.10270, -70.44210"></label></div>'+
+      '<p class="hint">O en UTM WGS84:</p><div class="grid"><label class="f"><span class="lb">Este (m)</span><input id="ue-'+i+'" inputmode="numeric"></label><label class="f"><span class="lb">Norte (m)</span><input id="un-'+i+'" inputmode="numeric"></label><label class="f"><span class="lb">Huso</span><select id="uz-'+i+'"><option value="19">19S</option><option value="18">18S</option><option value="12">12S (Rapa Nui)</option></select></label></div>'+
+      '<div class="row"><button class="btn pri" type="button" data-setman="'+i+'">Guardar coordenadas</button></div></div></div>'+
+      '<div class="f"><span class="lb">Zona asignada<span class="dest">Minuta V3</span></span>'+zoneHTML(s.zona)+'</div>'+
+      '<div class="f"><span class="lb">Fotografías de la estación<span class="dest">IFA 4.3.2</span></span>'+thumbs(P+'.fotos','estación '+s.id)+'</div>'+
+      (ro()?'':'<div><button class="btn dan" type="button" data-rm="est|'+i+'">Quitar estación</button></div>')+'</div></article>';
+  });
+  if(!ro())h+='<div><button class="btn pri" type="button" data-add="est">Agregar estación</button></div>';
+  return h;
+}
+function vM3(){
+  var I=APP.I,a=I.aplic,Z=zonesAll(I),h=head('M3','Aplicabilidad','Antecedentes para los nodos V1 a V4: versión normativa, calificación de la fuente y zona. La exigibilidad no se califica en terreno.');
+  h+='<div class="card"><h3>Fuente emisora <span>V2</span></h3>'+seg('aplic.fuente','Según el encargado, la fuente es',[['nueva','Nueva'],['existente','Existente'],['nosabe','No sabe']],{req:1})+
+    '<div class="grid">'+fld('aplic.finst','Fecha de instalación o puesta en servicio',{type:'date'})+'</div>'+chk('aplic.finstNI','Fecha no informada (se agrega a documentos pendientes)')+
+    seg('aplic.respaldo','Respaldo de la fecha',[['foto','Fotografiado en terreno'],['acta','Se requiere en el acta']],{req:1,hint:'TE2, factura, orden de compra, RCA o certificado con fecha.'});
+  if(a.respaldo==='foto')h+='<div class="f"><span class="lb">Foto del respaldo <span class="req">OBL.</span></span>'+thumbs('aplic.respFotos','respaldo de fecha de instalación')+'</div>';
+  h+=seg('aplic.seia','¿El proyecto ingresó al SEIA después del 18-10-2023?',[['si','Sí'],['no','No'],['na','No aplica']],{hint:'V1: en ese caso rige el D.S. N°1/2022 aunque los hechos sean anteriores a su vigencia.'})+'</div>';
+  h+='<div class="card"><h3>Zona <span>V3 · resultado de las capas en M2</span></h3>';
+  if(!I.est.some(function(s){return s.zona;}))h+='<p class="hint">Registre al menos una estación con coordenadas en M2.</p>';
+  else{
+    h+='<ul class="plain">'+(Z.apb.length?Z.apb.map(function(x){return '<li><b>'+esc(nmz(x))+'</b>'+(x.a?' · '+esc(x.a):'')+'</li>';}).join(''):'<li>Ninguna APB con capa en las estaciones.</li>')+'</ul>';
+  }
+  h+=seg('aplic.regVirg','¿Alguna estación está en una Reserva de Regiones Vírgenes?',[['si','Sí'],['no','No'],['nv','No verificado']],{hint:'No hay capa para esta categoría.'});
+  if(Z.near5.length||a.ext5)h+=seg('aplic.ext5','Extensión de 5 km por especies amenazadas (resolución anual del MMA)',[['si','Aplica'],['no','No aplica'],['nv','No verificado']],{req:!!Z.near5.length,hint:'Hay una APB a '+(Z.near5[0]?(Z.near5[0].d/1000).toFixed(1).replace('.',',')+' km ('+esc(Z.near5[0].n)+')':'menos de 5 km')+'.'})+(a.ext5==='si'?fld('aplic.ext5Res','N° de la resolución del MMA'):'');
+  Z.recoge.forEach(function(r){h+=seg('aplic.recogeLuz.'+r,'Plan RECOGE «'+r+'»: ¿identifica la luminosidad como amenaza?',[['si','Sí'],['no','No'],['nv','No verificado']],{req:1});});
+  if(Z.astro||Z.sitioCerca||a.astroDecl){
+    h+=seg('aplic.astroDecl','¿La comuna integra un Área Astronómica declarada (acto de MinCiencia)?',[['si','Sí'],['no','No'],['nv','No verificado']],{req:1,hint:'Los sitios astronómicos y el radio de 50 km son referencia técnica; ninguno es un área declarada.'});
+    if(a.astroDecl==='si')h+=seg('aplic.comunaAstro','Comuna según el listado del MMA',[['cercana','Cercana'],['lejana','Lejana (más de 100 km)'],['nv','No verificado']]);
+  }
+  h+='</div>';
+  if(a.fuente==='nueva'||a.fuente==='existente')h+='<div class="note info">Desde el 19-10-2026 venció el plazo general del art. 11: la fecha de instalación, el recambio y la zona determinan la exigibilidad. Se registran aquí y se califican en gabinete (nodo V4).</div>';
+  return h;
+}
+function vM4(){
+  var I=APP.I,h=head('M4','Inventario de luminarias','Un registro por grupo homogéneo (misma marca, modelo, potencia y sistema óptico). Los campos del catastro siguen el Anexo 1 del PCL N°4.');
+  if(!I.est.length)h+='<div class="note">Primero registre una estación en M2.</div>';
+  I.lums.forEach(function(l,i){
+    var P='lums.'+i,tipo=l.tipo;
+    h+='<article class="item"><header><span class="id">'+l.id+'</span><span class="nm">'+esc(TIPOS[tipo]||'Tipo sin indicar')+(l.cant?' · '+esc(l.cant)+' u.':'')+'</span>'+(l.est?'<span class="pill">'+esc(l.est)+'</span>':'')+'</header><div class="body">';
+    h+='<div class="grid">'+fld(P+'.tipo','Tipo de alumbrado',{req:1,opts:Object.keys(TIPOS).map(function(k){return [k,TIPOS[k]];}),dest:'C2'})+fld(P+'.est','Estación',{req:1,opts:I.est.map(function(s){return [s.id,s.id+(s.n?' · '+s.n:'')];})})+'</div>';
+    h+='<div class="f"><span class="lb">Catastro<span class="dest">PCL N°4 · Anexo 1</span></span><div class="grid">'+fld(P+'.cant','Cantidad',{req:1,type:'number',im:'numeric'})+fld(P+'.lampara','Tipo de lámpara',{req:1,opts:Object.keys(LAMPARAS).map(function(k){return [k,LAMPARAS[k]];})})+
+      niFld(P,l,'marca','Marca')+niFld(P,l,'modelo','Modelo')+niFld(P,l,'pot','Potencia (W)',{im:'decimal'})+niFld(P,l,'finst','Fecha de instalación',{type:'date'})+niFld(P,l,'ubic','Ubicación')+niFld(P,l,'certN','N° certificado de contaminación lumínica')+niFld(P,l,'certF','Fecha de certificación',{type:'date'})+'</div></div>';
+    h+=seg(P+'.certTipo','Certificación que consta',Object.keys(CERT).map(function(k){return [k,CERT[k]];}),{req:1,dest:'C3',hint:l.certTipo==='tipo'||l.certTipo==='sin'?'Con esta certificación el PCL N°2 no permite medir estas luminarias (regla R03).':l.certTipo==='nc'?'Se agregará el requerimiento de certificados. Una medición futura quedaría condicionada (R04).':''});
+    h+=seg(P+'.c1i','Instalada a la intemperie',SN,{req:1,dest:'C1'})+seg(P+'.c1s','Susceptible de producir contaminación lumínica',SN,{req:1})+
+      '<div>'+chk(P+'.sinMuros','Bajo techumbre en infraestructura sin muros')+chk(P+'.reorient','Reorientable durante la operación')+'</div>'+
+      fld(P+'.art4','Excepción del art. 4',{opts:[['a','a) Festividad popular oficial, ≤ 1.500 lm y no permanente'],['b','b) Navegación aérea o marítima y balizamientos'],['c','c) Lámparas de emergencia'],['d','d) Proyectores con fines astronómicos']],hint:l.art4==='b'?'Interpretación estricta: no alcanza el alumbrado general de explanadas, patios ni accesos.':''});
+    h+='<div class="f"><span class="lb">Geometría<span class="dest">C4</span></span></div>';
+    if(tipo==='pub_luminoso')h+=seg(P+'.pubHoriz','¿Orientado sobre la horizontal?',SN,{req:1})+seg(P+'.pubMorada','¿Orientado hacia la morada?',SN,{req:1});
+    else if(tipo==='canon')h+=seg(P+'.canon70','¿Proyecta sobre γ = 70°?',SN,{req:1});
+    else h+=seg(P+'.hemi','Proyección al hemisferio superior',[['si','Sí'],['no','No'],['alero','Impedida por alero o asiento']],{req:1});
+    h+='<div class="f"><span class="lb">Orientación del flujo <span class="req">OBL.</span></span><div>'+Object.keys(ORIENT).map(function(k){return chk(P+'.orient.'+k,ORIENT[k]);}).join('')+'</div></div>';
+    h+='<div class="grid">'+fld(P+'.incl','Inclinación referencial (°)',{im:'decimal',hint:'Antecedente de contexto: no es una medición del protocolo.'})+fld(P+'.tcc','TCC declarada (K)',{im:'numeric'})+fld(P+'.flujo','Flujo nominal (lm)',{im:'numeric'})+'</div>';
+    if(tipo==='ornamental'){h+='<div class="grid">'+fld(P+'.exDisp','Exención art. 6 N°1.1 · disposición',{opts:[['individual','Puntos individuales (≤ 1.000 lm/luminaria)'],['lineal','En línea (≤ 700 lm/m)'],['malla','En malla (≤ 700 lm/m²)']]})+(l.exDisp?fld(P+'.exFlujo','Flujo ('+(l.exDisp==='individual'?'lm':l.exDisp==='lineal'?'lm/m':'lm/m²')+')',{req:1,im:'decimal'}):'')+'</div>';
+      if(l.exDisp&&l.exFlujo){var v=parseFloat(String(l.exFlujo).replace(',','.'));var ok=l.exDisp==='individual'?v<=1000:v<=700;h+='<div class="note '+(ok?'ok':'')+'">'+(ok?'Concurren la disposición y el umbral de flujo: procede la exención de certificación.':'Supera el umbral: la sola disposición no exime de certificación.')+'</div>';}}
+    h+='<div class="grid">'+seg(P+'.recambio','¿Hubo recambio?',[['si','Sí'],['no','No'],['nosabe','No sabe']])+(l.recambio==='si'?fld(P+'.frec','Fecha del recambio',{type:'date'}):'')+'</div>';
+    h+=fld(P+'.obs','Observaciones',{type:'area'});
+    h+='<div class="f"><span class="lb">Fotografías <span class="req">OBL.</span><span class="dest">Sello, placa y vista general</span></span>'+thumbs(P+'.fotos','grupo '+l.id)+'</div>';
+    if(!ro())h+='<div class="row"><button class="btn" type="button" data-dup="'+i+'">Duplicar grupo</button><button class="btn dan" type="button" data-rm="lums|'+i+'">Quitar grupo</button></div>';
+    h+='</div></article>';
+  });
+  if(!ro()&&I.est.length)h+='<div><button class="btn pri" type="button" data-add="lum">Agregar grupo de luminarias</button></div>';
+  return h;
+}
+function niFld(P,l,k,label,o){o=o||{};var ni=(l.ni||{})[k];
+  return '<div class="f"><span class="lb">'+label+'</span>'+(ni?'<span class="pill warn" style="justify-self:start">No informado</span>':'<input id="'+fid(P+'.'+k)+'" data-b="'+P+'.'+k+'" type="'+(o.type||'text')+'"'+(o.im?' inputmode="'+o.im+'"':'')+' value="'+esc(l[k])+'" autocomplete="off" style="width:100%;min-width:0;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:10px;font-size:16px">')+
+  '<label class="chk"><input type="checkbox" data-cb="'+P+'.ni.'+k+'"'+(ni?' checked':'')+'><span>No informado</span></label></div>';}
+function vM8(){
+  var I=APP.I,N=need(I),h=head('M8','Cierre y exportación','Revisión de suficiencia, documentos pendientes del acta y salidas. Al cerrar, el registro queda en solo lectura.');
+  var labels={m0:'M0 Preparación',m1:'M1 Ejecución',m2:'M2 Estaciones',m3:'M3 Aplicabilidad',m4:'M4 Luminarias'};
+  h+='<div class="card"><h3>Suficiencia en terreno <span>G1 · campos obligatorios</span></h3>';
+  if(!N.total)h+='<div class="note ok"><b>Sin pendientes.</b> Todos los campos obligatorios de la fase 1 están completos.</div>';
+  Object.keys(N.m).forEach(function(k){if(!N.m[k].length)return;h+='<div><button class="btn" type="button" data-go="'+k+'">'+labels[k]+' · '+N.m[k].length+' pendiente'+(N.m[k].length>1?'s':'')+'</button><ul class="plain" style="margin-top:6px">'+N.m[k].map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';});
+  if(N.alerts.length)h+='<div class="note"><b>Alertas</b><ul class="plain">'+N.alerts.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
+  h+='</div>';
+  var auto=docsAuto(I);
+  h+='<div class="card"><h3>Documentos pendientes <span>Acta 8 · Anexo A de la especificación</span></h3><p class="hint">Preseleccionados según lo registrado. Puede marcar o desmarcar cada uno.</p>'+
+    DOCS.map(function(d){var on=I.docs.sel[d.k]===undefined?auto[d.k]:I.docs.sel[d.k];return '<label class="chk"><input type="checkbox" data-doc="'+d.k+'"'+(on?' checked':'')+'><span>'+esc(d.t)+(auto[d.k]&&I.docs.sel[d.k]===undefined?' <span class="pill">auto</span>':'')+'</span></label>';}).join('')+
+    I.docs.extra.map(function(x,i){return fld('docs.extra.'+i,'Documento adicional '+(i+1));}).join('')+(ro()?'':'<div><button class="btn" type="button" data-add="doc">Agregar documento</button></div>')+
+    '<div class="grid">'+fld('docs.plazo','Plazo (días hábiles)',{im:'numeric'})+fld('docs.direccion','Oficina y dirección de envío',{ph:'Oficina regional / oficina de partes'})+'</div></div>';
+  h+='<div class="card"><h3>Salidas <span>S1 y S4</span></h3><p class="hint">Puede generarlas como borrador en cualquier momento. El paquete incluye el acta, las fotos originales, el JSON compatible con el Revisor de IFA de la DSC y un manifiesto de hashes SHA-256.</p>'+
+    '<div class="row"><button class="btn pri keep" type="button" data-act="acta">Borrador de acta (.docx)</button><button class="btn keep" type="button" data-act="zip">Paquete de datos (.zip)</button></div>'+
+    (I.exportes.length?'<p class="hint">Última exportación: '+esc(I.exportes[I.exportes.length-1].ts)+' · '+esc(I.exportes[I.exportes.length-1].tipo)+'</p>':'')+'</div>';
+  if(I.estado!=='cerrada'){
+    h+='<div class="card"><h3>Cerrar la inspección <span>R16</span></h3><p class="hint">Se registra la hora de término si falta, se calcula el hash del registro y se exporta el paquete final. El cierre se confirma solo si el paquete se guarda.</p>'+
+      (N.total?'<div class="note">Quedan '+N.total+' campos obligatorios pendientes. Puede cerrar igual: los pendientes quedan anotados en el paquete.</div>':'')+
+      '<div class="row"><button class="btn pri" type="button" data-act="close" id="btn-close">Cerrar y exportar paquete final</button></div></div>';
+  }else{
+    h+='<div class="card"><h3>Inspección cerrada</h3><dl class="kv"><dt>Cierre</dt><dd>'+esc(I.cierre.ts)+'</dd><dt>Hash del registro</dt><dd class="mono">'+esc(I.cierre.hash)+'</dd></dl>'+
+      '<div class="f"><span class="lb">Anotaciones posteriores</span>'+(I.anot.length?'<ul class="plain">'+I.anot.map(function(x){return '<li>'+esc(x.ts)+' · '+esc(x.autor)+': '+esc(x.texto)+'</li>';}).join('')+'</ul>':'<p class="hint">Sin anotaciones.</p>')+'</div>'+
+      '<label class="f" for="anot"><span class="lb">Nueva anotación</span><textarea id="anot" class="keep"></textarea></label><div class="row"><button class="btn keep" type="button" data-act="anot">Agregar anotación</button><button class="btn dan keep" type="button" data-act="delete">Borrar de este dispositivo</button></div></div>';
+  }
+  return h;
+}
+
+/* ============ Render ============ */
+var VIEWS={inicio:vInicio,m0:vM0,m1:vM1,m2:vM2,m3:vM3,m4:vM4,m8:vM8};
+function render(keep){
+  var y=window.scrollY,I=APP.I;
+  if(!I&&APP.mod!=='inicio')APP.mod='inicio';
+  renderNav();
+  var body=VIEWS[APP.mod]();
+  if(I&&I.ejemplo&&APP.mod!=='inicio')body='<div class="sample"><b>Ejemplo</b><span>Datos ficticios para recorrer los módulos. No corresponden a una inspección real.</span></div>'+body;
+  var lock=ro()&&APP.mod!=='inicio'&&APP.mod!=='m8';
+  document.getElementById('main').innerHTML=lock?'<fieldset disabled>'+body+'</fieldset>':body;
+  if(ro()&&APP.mod==='m8')document.querySelectorAll('#main [data-b],#main [data-doc],#main [data-cb]').forEach(function(el){el.disabled=true;});
+  var idx=MODS.findIndex(function(m){return m.k===APP.mod;});
+  document.getElementById('btn-prev').hidden=!I||idx<=1;
+  var nx=document.getElementById('btn-next');nx.hidden=!I||idx>=MODS.length-1;
+  if(idx>=0&&idx<MODS.length-1)nx.textContent=MODS[idx+1].n;
+  setStatus();hydrateThumbs();
+  if(keep)window.scrollTo(0,y);
+}
+function renderNav(){
+  var I=APP.I,N=I?need(I):null;
+  document.getElementById('mods').innerHTML=MODS.filter(function(m){return I||m.k==='inicio';}).map(function(m){
+    var dot='';if(N&&N.m[m.k])dot='<span class="dot'+(N.m[m.k].length?'':' ok')+'" aria-hidden="true"></span>';
+    if(N&&m.k==='m8')dot='<span class="dot'+(N.total?'':' ok')+'" aria-hidden="true"></span>';
+    return '<button type="button" data-mod="'+m.k+'" aria-current="'+(APP.mod===m.k)+'">'+(m.c?'<code>'+m.c+'</code>':'')+m.n+dot+'</button>';}).join('');
+  document.getElementById('title').textContent=I?(I.prep.uf||'Inspección sin nombre'):'Inspección lumínica en terreno';
+  var nav=document.getElementById('mods'),cur=nav.querySelector('[aria-current="true"]');if(cur)nav.scrollLeft=cur.offsetLeft-nav.clientWidth/2+cur.clientWidth/2;
+  document.getElementById('eyebrow').textContent=I?('Inspección '+fmtD(I.ejec.fecha)+(I.estado==='cerrada'?' · cerrada':'')+(I.ejemplo?' · EJEMPLO':'')):'SMA · D.S. N°1/2022 · Prototipo fase 1';
+}
+function go(k){APP.mod=k;try{localStorage.setItem('il:mod',k);}catch(e){}render();window.scrollTo(0,0);}
+
+/* ============ Eventos ============ */
+var main=document.getElementById('main');
+main.addEventListener('input',function(e){var t=e.target,p=t.getAttribute('data-b');if(!p||ro())return;setP(APP.I,p,t.value);touch();});
+main.addEventListener('change',async function(e){
+  var t=e.target;if(!APP.I&&!t.hasAttribute('data-photo'))return;
+  if(t.hasAttribute('data-photo')){var files=Array.from(t.files||[]);t.value='';if(files.length){await addPhotos(files,t.getAttribute('data-photo'),t.getAttribute('data-ctx'));toast(files.length+' foto(s) agregada(s) con su hash SHA-256.');}return;}
+  if(ro())return;
+  var p=t.getAttribute('data-b');
+  if(p&&t.tagName==='SELECT'){setP(APP.I,p,t.value);touch();render(true);return;}
+  if(p&&(t.type==='date'||t.type==='time'||t.type==='number')){setP(APP.I,p,t.value);touch();render(true);return;}
+  if(p){renderNav();var w=t.closest('.f');if(w&&w.querySelector('.req'))w.classList.toggle('miss',!t.value);return;}
+  if(t.hasAttribute('data-cb')){setP(APP.I,t.getAttribute('data-cb'),t.checked);touch();render(true);return;}
+  if(t.hasAttribute('data-list')){var arr=getP(APP.I,t.getAttribute('data-list')),v=t.getAttribute('data-v'),ix=arr.indexOf(v);if(t.checked&&ix<0)arr.push(v);if(!t.checked&&ix>=0)arr.splice(ix,1);touch();render(true);return;}
+  if(t.hasAttribute('data-doc')){APP.I.docs.sel[t.getAttribute('data-doc')]=t.checked;touch();render(true);return;}
+});
+document.addEventListener('click',async function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.hasAttribute('data-mod')){go(b.getAttribute('data-mod'));return;}
+  if(b.id==='btn-next'||b.id==='btn-prev'){var i=MODS.findIndex(function(m){return m.k===APP.mod;});go(MODS[i+(b.id==='btn-next'?1:-1)].k);return;}
+  if(b.id==='btn-night'){APP.night=!APP.night;applyNight();return;}
+  if(b.hasAttribute('data-go')){go(b.getAttribute('data-go'));return;}
+  if(b.hasAttribute('data-open')){await openInsp(b.getAttribute('data-open'));go('m0');return;}
+  var act=b.getAttribute('data-act');
+  if(act==='new'){APP.I=blankInsp();await saveNow();go('m0');return;}
+  if(act==='sample'){APP.I=sampleInsp();APP.I.est.forEach(function(s){s.utm=toUTM(s.lat,s.lon);s.zona=zoneOf(s.lat,s.lon);});await saveNow();go('m2');return;}
+  if(act==='acta'){exportActa();return;}
+  if(act==='zip'){exportZip(false);return;}
+  if(act==='close'){closeInsp(b);return;}
+  if(act==='anot'){var tx=document.getElementById('anot').value.trim();if(!tx)return;APP.I.anot.push({ts:stamp(),autor:(APP.I.ejec.fisc[0]||{}).nombre||'Fiscalizador',texto:tx});await saveNow();render(true);toast('Anotación agregada con fecha y hora.');return;}
+  if(act==='delete'){if(b.getAttribute('data-sure')){await deleteInsp();return;}b.setAttribute('data-sure','1');b.textContent='Confirmar: borrar';setTimeout(function(){if(b.isConnected){b.removeAttribute('data-sure');b.textContent='Borrar de este dispositivo';}},4000);return;}
+  if(ro())return;
+  if(b.hasAttribute('data-seg')){var p=b.getAttribute('data-seg'),v=b.getAttribute('data-v');setP(APP.I,p,getP(APP.I,p)===v?'':v);touch();render(true);return;}
+  if(b.hasAttribute('data-now')){setP(APP.I,b.getAttribute('data-now'),nowHM());touch();render(true);return;}
+  if(b.hasAttribute('data-add')){var k=b.getAttribute('data-add'),I=APP.I;
+    if(k==='fisc')I.ejec.fisc.push({nombre:'',org:'Superintendencia del Medio Ambiente'});
+    if(k==='asist')I.ejec.asist.push({nombre:'',inst:''});
+    if(k==='est')I.est.push(newEst(I));
+    if(k==='lum')I.lums.push(newLum(I));
+    if(k==='doc')I.docs.extra.push('');
+    touch();render(true);return;}
+  if(b.hasAttribute('data-rm')){var r=b.getAttribute('data-rm').split('|');if(!b.getAttribute('data-sure')){b.setAttribute('data-sure','1');b.textContent='Confirmar';setTimeout(function(){if(b.isConnected){b.removeAttribute('data-sure');b.textContent='Quitar';}},3500);return;}
+    getP(APP.I,r[0]).splice(+r[1],1);touch();render(true);return;}
+  if(b.hasAttribute('data-dup')){var I2=APP.I,src=I2.lums[+b.getAttribute('data-dup')],c=JSON.parse(JSON.stringify(src));c.id='L'+(I2.lums.length+1);c.fotos=[];I2.lums.splice(+b.getAttribute('data-dup')+1,0,c);touch();render(true);return;}
+  if(b.hasAttribute('data-delph')){var d=b.getAttribute('data-delph').split('|');var arr=getP(APP.I,d[0]);var ph=arr.splice(+d[1],1)[0];if(ph)await STORE.del('photos',APP.I.id+':'+ph.id);touch();render(true);return;}
+  if(b.hasAttribute('data-gps')){gps(+b.getAttribute('data-gps'),b);return;}
+  if(b.hasAttribute('data-manual')){var m=document.getElementById('man-'+b.getAttribute('data-manual'));m.hidden=!m.hidden;return;}
+  if(b.hasAttribute('data-setman')){setManual(+b.getAttribute('data-setman'));return;}
+});
+function applyNight(){document.documentElement.setAttribute('data-night',APP.night?'1':'0');var b=document.getElementById('btn-night');b.setAttribute('aria-pressed',String(APP.night));try{localStorage.setItem('il:night',APP.night?'1':'0');}catch(e){}}
+function setCoords(i,lat,lon,acc,manual){var s=APP.I.est[i];s.lat=lat;s.lon=lon;s.acc=acc;s.manual=manual;s.ts=stamp();s.utm=toUTM(lat,lon);s.zona=zoneOf(lat,lon);touch();render(true);
+  toast(s.zona?('Zona asignada: '+(s.zona.apb.length?s.zona.apb.map(function(x){return nmz(x);}).join(', '):'fuera de APB con capa')):'Coordenadas guardadas.');}
+function gps(i,b){
+  if(!navigator.geolocation){toast('Este navegador no entrega ubicación. Ingrese las coordenadas a mano.');document.getElementById('man-'+i).hidden=false;return;}
+  b.disabled=true;b.textContent='Buscando señal…';
+  navigator.geolocation.getCurrentPosition(function(p){setCoords(i,p.coords.latitude,p.coords.longitude,p.coords.accuracy,false);},
+    function(){b.disabled=false;b.textContent='Usar GPS';toast('No se obtuvo la ubicación. Ingrese las coordenadas a mano.');document.getElementById('man-'+i).hidden=false;},
+    {enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+function setManual(i){
+  var ll=document.getElementById('ll-'+i).value.trim(),E=document.getElementById('ue-'+i).value.replace(/[.\s]/g,'').replace(',','.'),Nn=document.getElementById('un-'+i).value.replace(/[.\s]/g,'').replace(',','.'),z=+document.getElementById('uz-'+i).value;
+  if(ll){var m=ll.match(/(-?\d+(?:[.,]\d+)?)\s*[,;\s]\s*(-?\d+(?:[.,]\d+)?)/);if(!m){toast('Formato no reconocido. Use: -23.10270, -70.44210');return;}
+    var la=parseFloat(m[1].replace(',','.')),lo=parseFloat(m[2].replace(',','.'));if(Math.abs(la)>90||Math.abs(lo)>180){toast('Coordenadas fuera de rango.');return;}setCoords(i,la,lo,null,true);return;}
+  if(E&&Nn){var g=fromUTM(+E,+Nn,z,true);if(!isFinite(g.lat)){toast('UTM no válida.');return;}setCoords(i,g.lat,g.lon,null,true);return;}
+  toast('Ingrese latitud y longitud, o Este y Norte UTM.');
+}
+async function openInsp(id){var I=migrate(await STORE.get('kv','insp:'+id));if(I){APP.I=I;APP.photoURL={};try{localStorage.setItem('il:cur',id);}catch(e){}}}
+async function deleteInsp(){var I=APP.I;var all=[].concat(I.prep.equipo.fotos,I.aplic.respFotos);I.est.forEach(function(s){all=all.concat(s.fotos);});I.lums.forEach(function(l){all=all.concat(l.fotos);});
+  for(var i=0;i<all.length;i++)await STORE.del('photos',I.id+':'+all[i].id);await STORE.del('kv','insp:'+I.id);APP.index=APP.index.filter(function(x){return x.id!==I.id;});await STORE.put('kv','index',APP.index);APP.I=null;go('inicio');toast('Inspección borrada de este dispositivo.');}
+
+/* ============ Salidas ============ */
+function allPhotos(I){var L=[];function add(arr,ref){(arr||[]).forEach(function(p){L.push({p:p,ref:ref});});}
+  add(I.prep.equipo.fotos,'Certificado de calibración');add(I.aplic.respFotos,'Respaldo de fecha de instalación');
+  I.est.forEach(function(s){add(s.fotos,'Estación '+s.id);});I.lums.forEach(function(l){add(l.fotos,'Grupo '+l.id+' ('+(TIPOS[l.tipo]||'')+'), estación '+l.est);});
+  return L.sort(function(a,b){return a.p.id<b.p.id?-1:1;});}
+function photoRange(arr){if(!arr||!arr.length)return '';return arr.map(function(p){return p.id;}).join(', ');}
+function sn(v){return v==='si'?'Sí':v==='no'?'No':'—';}
+function hechosEst(I,s){
+  var out=[],z=s.zona;
+  out.push('Estación '+s.id+(s.n?' ('+s.n+')':'')+(s.utm?', coordenadas UTM WGS84 '+utmTxt(s.utm):'')+(s.manual?' (ingresadas manualmente)':'')+'.'+(s.desc?' '+s.desc:''));
+  I.lums.filter(function(l){return l.est===s.id;}).forEach(function(l){
+    var t='Se constató el grupo '+l.id+': '+(l.cant||'¿?')+' luminaria(s) de alumbrado '+(TIPOS[l.tipo]||'sin tipo').toLowerCase()+', lámpara '+(LAMPARAS[l.lampara]||'—').toLowerCase();
+    var mm=[l.marca,l.modelo].filter(Boolean).join(' / ');if(mm)t+=', '+mm;if(l.pot)t+=', '+l.pot+' W';if(l.ubic)t+=', ubicadas en '+l.ubic;t+='.';
+    t+=' Instalación a la intemperie: '+sn(l.c1i).toLowerCase()+'; susceptible de producir contaminación lumínica: '+sn(l.c1s).toLowerCase()+'.';
+    if(l.sinMuros)t+=' Bajo techumbre en infraestructura sin muros.';if(l.reorient)t+=' Reorientables durante la operación.';
+    if(l.art4)t+=' Se invoca la excepción del art. 4 letra '+l.art4+').';
+    t+=' Certificación: '+(CERT[l.certTipo]||'—').toLowerCase()+(l.certN?' (N° '+l.certN+(l.certF?', '+fmtD(l.certF):'')+')':'')+'.';
+    if(l.tipo==='pub_luminoso')t+=' Orientación sobre la horizontal: '+sn(l.pubHoriz).toLowerCase()+'; hacia la morada: '+sn(l.pubMorada).toLowerCase()+'.';
+    else if(l.tipo==='canon')t+=' Proyección sobre γ = 70°: '+sn(l.canon70).toLowerCase()+'.';
+    else if(l.hemi)t+=' Proyección al hemisferio superior: '+(l.hemi==='alero'?'impedida por alero o asiento':sn(l.hemi).toLowerCase())+'.';
+    var o=Object.keys(l.orient||{}).filter(function(k){return l.orient[k];}).map(function(k){return ORIENT[k].toLowerCase();});if(o.length)t+=' Flujo orientado hacia: '+o.join(', ')+'.';
+    if(l.incl)t+=' Inclinación referencial: '+l.incl+'° (sensor del dispositivo, no es medición del protocolo).';
+    if(l.tcc)t+=' TCC declarada: '+l.tcc+' K.';
+    if(l.recambio==='si')t+=' El encargado declara recambio'+(l.frec?' el '+fmtD(l.frec):'')+'.';
+    if(l.obs)t+=' '+l.obs;
+    if(l.fotos.length)t+=' Fotografías: '+photoRange(l.fotos)+'.';
+    out.push(t);
+  });
+  if(s.fotos.length)out.push('Registro fotográfico de la estación: '+photoRange(s.fotos)+'.');
+  if(z){var c='Antecedente cartográfico referencial: '+(z.apb.length?'la estación se emplaza en '+z.apb.map(function(x){return nmz(x)+(x.a?' ('+x.a+')':'');}).join('; '):'la estación no se emplaza en Áreas de Protección para la Biodiversidad con capa disponible')+(z.recoge.length?'; dentro del área del Plan RECOGE '+z.recoge.map(function(x){return x.n;}).join(', '):'')+(z.borde.length?'; a menos de 100 m de un límite, sujeto a verificación con cartografía oficial':'')+'. Capas: '+[z.capas.apb,z.capas.recoge].filter(Boolean).join('; ')+'.';out.push(c);}
+  return out;
+}
+function actaBlocks(I){
+  var p=I.prep,e=I.ejec,a=I.aplic,B=[];
+  function T(t){B.push({k:'title',t:t});}function H(t){B.push({k:'h',t:t});}function P(t,o){B.push({k:'p',t:t,o:o||{}});}function KV(rows){B.push({k:'kv',rows:rows});}function TB(h,rows,w){B.push({k:'tb',h:h,rows:rows,w:w});}
+  T('ACTA DE INSPECCIÓN AMBIENTAL');
+  P('(Formato de acta para normas de emisión, calidad y planes de prevención y/o descontaminación ambiental)',{c:1,i:1});
+  P('Borrador generado por la aplicación de terreno (v'+APP_VER+', '+RULES_VER+') el '+stamp()+'. Revisar antes de firmar.'+(I.ejemplo?' DOCUMENTO DE EJEMPLO: datos ficticios.':''),{i:1,s:1});
+  H('1. ANTECEDENTES');
+  KV([['1.1 Fecha de inspección',fmtD(e.fecha)],['1.2 Hora de inicio',e.hIni],['1.3 Hora de término',e.hFin],['1.4 Nombre de la Unidad Fiscalizable',p.uf],['1.5 Estado operacional',e.estadoOp],
+    ['1.6 Ubicación',[p.direccion,p.comuna?'Comuna: '+p.comuna:'',p.region?'Región: '+p.region:''].filter(Boolean).join(' · ')],
+    ['1.7 Titular(es)',p.titular+(p.rut?' · RUT '+p.rut:'')],['Domicilio titular (notificación)',p.domicilio],['Teléfono / correo',[p.telefono,p.correo].filter(Boolean).join(' · ')],
+    ['1.8 Representante legal',[p.rep,p.repRut?'RUT '+p.repRut:'',p.repDom,p.repCorreo].filter(Boolean).join(' · ')],
+    ['1.9 Encargado durante la inspección',[e.enc.nombre,e.enc.rut?'RUT '+e.enc.rut:'',e.enc.dom,e.enc.tel,e.enc.correo].filter(Boolean).join(' · ')]]);
+  H('2. MOTIVO DE LA ACTIVIDAD DE FISCALIZACIÓN');
+  KV([['Motivo',p.motivo==='programada'?'2.1 Programada':p.motivo==='no_programada'?'2.2 No programada'+(p.motivoTipo?' · '+{denuncia:'Denuncia',autodenuncia:'Autodenuncia',oficio:'De oficio',otro:'Otro'}[p.motivoTipo]:''):'—'],['Detalle',p.motivoDet]]);
+  H('3. MATERIA ESPECÍFICA OBJETO DE LA INSPECCIÓN AMBIENTAL');
+  p.materias.concat(p.materiaOtra?[p.materiaOtra]:[]).forEach(function(m){B.push({k:'li',t:m});});
+  H('4. INSTRUMENTOS DE CARÁCTER AMBIENTAL FISCALIZADOS');
+  p.instrumentos.concat(p.rca?[p.rca]:[]).forEach(function(m){B.push({k:'li',t:m});});
+  H('5. ASPECTOS ASOCIADOS A LA EJECUCIÓN DE LA INSPECCIÓN AMBIENTAL');
+  KV([['5.1 Existió oposición al ingreso',sn(e.oposicion)],['5.2 Se solicitó auxilio de la fuerza pública',sn(e.fuerza)],['5.3 Existió colaboración por parte de los fiscalizados',sn(e.colab)],
+    ['5.4 Se ejecutó la reunión informativa',sn(e.reunion)+(e.reunion==='no'&&e.reuCausa?' · Causa: '+e.reuCausa:'')]].concat(e.reunion==='si'?[
+    ['a) Se informaron las materias objeto de la fiscalización',sn(e.reuA)],['b) Se informó la normativa ambiental pertinente',sn(e.reuB)],['c) Se informó el orden en que se llevaría a cabo la inspección',sn(e.reuC)],['d) Se explicaron los métodos para documentar y registrar',sn(e.reuD)]]:[]));
+  H('6. OBSERVACIONES ASOCIADAS A LA EJECUCIÓN DE LA INSPECCIÓN AMBIENTAL');
+  var obs=[];if(e.obs)obs.push(e.obs);if(e.hEnc)obs.push('Hora de encendido del alumbrado público en el sector: '+e.hEnc+'.');
+  if(e.tIni||e.humIni)obs.push('Condiciones al inicio: '+(e.tIni||'—')+' °C, '+(e.humIni||'—')+' % HR'+(e.nub?', '+e.nub.toLowerCase():'')+'.');
+  if(e.tFin||e.humFin)obs.push('Condiciones al término: '+(e.tFin||'—')+' °C, '+(e.humFin||'—')+' % HR.');
+  if(p.medira==='si')obs.push('Instrumental: '+[p.equipo.tipo,p.equipo.marca,p.equipo.modelo].filter(Boolean).join(' ')+', N° de serie '+(p.equipo.serie||'—')+', certificado de calibración N° '+(p.equipo.certN||'—')+(p.equipo.lab?' ('+p.equipo.lab+')':'')+' de '+fmtD(p.equipo.certF)+'.');
+  (obs.length?obs:['Sin observaciones.']).forEach(function(t){P(t);});
+  H('7. HECHOS CONSTATADOS Y/O ACTIVIDADES REALIZADAS');
+  var dec='Declaración del encargado: la fuente es '+({nueva:'nueva',existente:'existente',nosabe:'de calificación desconocida para el encargado'}[a.fuente]||'—')+(a.finst?', con fecha de instalación o puesta en servicio el '+fmtD(a.finst):a.finstNI?'; la fecha de instalación no fue informada':'')+'.'+
+    (a.respaldo==='foto'?' Se fotografió el respaldo ('+photoRange(a.respFotos)+').':a.respaldo==='acta'?' El respaldo se requiere en la sección 8.':'')+(a.seia==='si'?' El proyecto ingresó al SEIA con posterioridad al 18-10-2023.':'');
+  P(dec);
+  I.est.forEach(function(s){hechosEst(I,s).forEach(function(t,i){P(t,i===0?{b:1}:{});});});
+  var Z=zonesAll(I),q=[];
+  if(a.regVirg==='si')q.push('Una o más estaciones se emplazan en una Reserva de Regiones Vírgenes.');
+  if(a.ext5==='si')q.push('Aplica la extensión de 5 km por especies amenazadas'+(a.ext5Res?' (Res. MMA '+a.ext5Res+')':'')+'.');
+  Object.keys(a.recogeLuz||{}).forEach(function(r){if(a.recogeLuz[r]==='si')q.push('El Plan RECOGE '+r+' identifica la luminosidad artificial como amenaza.');});
+  if(a.astroDecl==='si')q.push('La comuna integra un Área Astronómica declarada'+(a.comunaAstro&&a.comunaAstro!=='nv'?' (comuna '+a.comunaAstro+')':'')+'.');
+  q.forEach(function(t){P(t);});
+  H('8. DOCUMENTOS PENDIENTES DE ENTREGAR POR PARTE DEL TITULAR');
+  TB(['N°','Descripción'],docsList(I).map(function(t,i){return [String(i+1),t];}),[8,92]);
+  KV([['Plazo de envío en formato digital (días hábiles)',I.docs.plazo],['Oficina(s) a la(s) que debe enviarse',I.docs.direccion]]);
+  P('Los antecedentes de remisión de información se rigen por la Res. Ex. SMA N°1986/2024.',{i:1,s:1});
+  H('9. FISCALIZADORES PARTICIPANTES');
+  TB(['Nombre','Organismo','Firma'],e.fisc.filter(function(f){return f.nombre;}).map(function(f){return [f.nombre,f.org,''];}),[40,35,25]);
+  H('10. OTROS ASISTENTES');
+  TB(['Nombre','Institución/Empresa','Firma'],(e.asist.filter(function(f){return f.nombre;}).length?e.asist.filter(function(f){return f.nombre;}).map(function(f){return [f.nombre,f.inst,''];}):[['','','']]),[40,35,25]);
+  H('11. RECEPCIÓN DEL ACTA');
+  KV([['11.1 El encargado o responsable recepcionó copia del acta','SI ____  NO ____'],['En caso negativo, motivo','Ausencia del encargado ____  Negación de recepción ____  Otro ____'],['Observaciones','']]);
+  return B;
+}
+function xe(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');}
+function wr(t,o){o=o||{};return '<w:r><w:rPr>'+(o.b?'<w:b/>':'')+(o.i?'<w:i/>':'')+(o.sz?'<w:sz w:val="'+o.sz+'"/><w:szCs w:val="'+o.sz+'"/>':'')+'</w:rPr><w:t xml:space="preserve">'+xe(t)+'</w:t></w:r>';}
+function wp(runs,o){o=o||{};return '<w:p><w:pPr>'+(o.style?'<w:pStyle w:val="'+o.style+'"/>':'')+(o.num?'<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>':'')+(o.jc?'<w:jc w:val="'+o.jc+'"/>':'')+'</w:pPr>'+runs+'</w:p>';}
+function wtbl(head,rows,pcts){
+  var W=9638,ws=pcts.map(function(p){return Math.round(W*p/100);});ws[ws.length-1]+=W-ws.reduce(function(a,b){return a+b;},0);
+  var bd='<w:tblBorders>'+['top','left','bottom','right','insideH','insideV'].map(function(s){return '<w:'+s+' w:val="single" w:sz="4" w:space="0" w:color="8A8F9C"/>';}).join('')+'</w:tblBorders>';
+  function cell(t,i,hd){return '<w:tc><w:tcPr><w:tcW w:w="'+ws[i]+'" w:type="dxa"/>'+(hd?'<w:shd w:val="clear" w:color="auto" w:fill="E6E8EE"/>':'')+'</w:tcPr>'+wp(wr(t||'',{b:hd,sz:19}))+'</w:tc>';}
+  return '<w:tbl><w:tblPr><w:tblW w:w="'+W+'" w:type="dxa"/>'+bd+'<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="50" w:type="dxa"/><w:left w:w="90" w:type="dxa"/><w:bottom w:w="50" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>'+ws.map(function(w){return '<w:gridCol w:w="'+w+'"/>';}).join('')+'</w:tblGrid>'+
+    (head?'<w:tr><w:trPr><w:tblHeader/></w:trPr>'+head.map(function(h,i){return cell(h,i,true);}).join('')+'</w:tr>':'')+
+    rows.map(function(r){return '<w:tr><w:trPr><w:cantSplit/></w:trPr>'+r.map(function(c,i){return cell(c,i,false);}).join('')+'</w:tr>';}).join('')+'</w:tbl>'+wp('');
+}
+function docXML(B){
+  var body=B.map(function(b){
+    if(b.k==='title')return wp(wr(b.t,{b:1,sz:28}),{jc:'center'});
+    if(b.k==='h')return wp(wr(b.t),{style:'Heading1'});
+    if(b.k==='p')return wp(wr(b.t,{b:b.o.b,i:b.o.i,sz:b.o.s?17:null}),b.o.c?{jc:'center'}:{jc:'both'});
+    if(b.k==='li')return wp(wr(b.t),{num:1});
+    if(b.k==='kv')return wtbl(null,b.rows.map(function(r){return [r[0],r[1]||''];}),[38,62]);
+    if(b.k==='tb')return wtbl(b.h,b.rows,b.w);
+    return '';}).join('');
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>'+body+
+    '<w:sectPr><w:footerReference w:type="default" r:id="rId3"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>';
+}
+var DOCX_STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="es-CL"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>'+
+  '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'+
+  '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:shd w:val="clear" w:color="auto" w:fill="E6E8EE"/><w:spacing w:before="240" w:after="100"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="20"/></w:rPr></w:style>'+
+  '<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:rPr><w:sz w:val="16"/><w:color w:val="666666"/></w:rPr></w:style></w:styles>';
+var DOCX_NUM='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="500" w:hanging="250"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
+function docxZip(B,footer){
+  var z=new JSZip();
+  z.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>');
+  z.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  z.file('word/_rels/document.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>');
+  z.file('word/document.xml',docXML(B));z.file('word/styles.xml',DOCX_STYLES);z.file('word/numbering.xml',DOCX_NUM);
+  z.file('word/footer1.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pStyle w:val="Footer"/><w:jc w:val="right"/></w:pPr><w:r><w:t xml:space="preserve">'+xe(footer)+' · pág. </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>');
+  return z;
+}
+async function actaBlob(I){return docxZip(actaBlocks(I),'Acta de inspección · '+(I.prep.uf||'')+' · '+fmtD(I.ejec.fecha)).generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});}
+function revisorJSON(I){
+  var Z=zonesAll(I),a=I.aplic,s0=I.est.find(function(s){return s.lat!=null;});
+  var tec={led:'led',sap:'sodio',sbp:'sodio',hm:'otra',otra:'otra'};
+  return {v:1,sample:!!I.ejemplo,origen:'App de terreno '+APP_VER+' · inspección '+I.id,
+    meta:{exp:'',ifa:'',den:p0(I.prep.motivoDet),fiscal:'',frev:'',obs:'Importado desde la aplicación de terreno. Revisar la calificación de cada hallazgo.'},
+    uf:{nombre:I.prep.uf,titular:I.prep.titular,rut:I.prep.rut,dir:I.prep.direccion,comuna:I.prep.comuna,region:I.prep.region,coord:s0?(s0.lat.toFixed(5)+', '+s0.lon.toFixed(5)+' (UTM '+utmTxt(s0.utm)+')'):'',
+      fuente:a.fuente==='nosabe'?'nc':a.fuente,fuenteSop:a.respaldo==='foto'?'ok':'',finst:a.finst,seia:a.seia==='si'?'si':'no',fechaHechos:I.ejec.fecha,
+      astro:a.astroDecl==='si',astro100:a.comunaAstro==='lejana'?'si':'no',apb:Z.apb.length>0||a.regVirg==='si'||a.ext5==='si',recoge:Object.keys(a.recogeLuz||{}).some(function(k){return a.recogeLuz[k]==='si';}),
+      capa:I.est.some(function(s){return s.zona;})?'ok':'',capaDiscrepa:false,pcl4:'no'},
+    insp:{fecha:I.ejec.fecha,hora:I.ejec.hIni,temp:I.ejec.tIni,hum:I.ejec.humIni,protocolo:'',instr:[I.prep.equipo.tipo,I.prep.equipo.marca,I.prep.equipo.modelo].filter(Boolean).join(' '),serie:I.prep.equipo.serie,calib:'',cond:'',obs:''},
+    lum:I.lums.map(function(l){var h={},medio={};
+      if(l.tipo==='ornamental'&&l.hemi==='si'){h.hemi6='incumple';medio.hemi6='acta';}
+      if(l.tipo==='pub_luminoso'&&(l.pubHoriz==='si'||l.pubMorada==='si')){h.orient8='incumple';medio.orient8='acta';}
+      if(l.tipo==='canon'&&l.canon70==='si'){h.g70='incumple';medio.g70='acta';}
+      return {id:l.id,tipo:l.tipo,cant:+l.cant||0,marca:l.marca,modelo:l.modelo,pot:l.pot,tcc:l.tcc,flujo:l.flujo,foto:l.fotos.length?'Fot. '+photoRange(l.fotos):'',
+        c1i:l.c1i,c1s:l.c1s,sinMuros:!!l.sinMuros,reorient:!!l.reorient,art4:l.art4,recambio:l.recambio==='nosabe'?'':l.recambio,frec:l.frec,tec:tec[l.lampara]||'',led532:'',
+        certTipo:['aprobacion','seguimiento','tipo','sin'].indexOf(l.certTipo)>=0?l.certTipo:'',certN:l.certN,certF:l.certF,exDisp:l.exDisp,exFlujo:l.exFlujo,h:h,medio:medio,horExc:false,estServ:false,traza:'',valor:'',punto:'',extra:[]};}),
+    rem:{reg:'art17',ps:'',sar:'nover',sisat:'nover',items:[],oport:'nover',act:'na',consulta:''},
+    sin:{sup:'',flujo:'',mar:'',ap:'',res:'',caida:'',caidaDet:'',ventana:''},merit:{}};
+}
+function p0(s){return String(s||'').slice(0,500);}
+async function buildZip(I,final){
+  var z=new JSZip(),man={},enc=new TextEncoder();
+  async function add(path,data){z.file(path,data);var buf=typeof data==='string'?enc.encode(data):data instanceof Blob?await data.arrayBuffer():data;man[path]=await sha256(buf);}
+  var photos=allPhotos(I),plist=[];
+  for(var i=0;i<photos.length;i++){var ph=photos[i].p,r=await STORE.get('photos',I.id+':'+ph.id);if(!r)continue;var ext=(r.type.split('/')[1]||'jpg').replace('jpeg','jpg');var path='fotos/'+ph.id+'.'+ext;
+    await add(path,r.buf);plist.push({id:ph.id,archivo:path,referencia:photos[i].ref,capturada:r.ts,sha256_captura:r.hash,nombre_original:r.name});}
+  var N=need(I);
+  var data=JSON.parse(JSON.stringify(I));data.exportado=stamp();data.final=!!final;data.pendientes=N;data.fotos=plist;
+  await add('inspeccion.json',JSON.stringify(data,null,2));
+  await add('revisor-ifa.json',JSON.stringify(revisorJSON(I),null,2));
+  await add('acta-borrador.docx',await actaBlob(I));
+  await add('LEEME.txt','Paquete de inspección lumínica · App de terreno '+APP_VER+'\r\nUnidad fiscalizable: '+I.prep.uf+'\r\nFecha: '+fmtD(I.ejec.fecha)+'\r\nEstado: '+(final?'cerrada':'borrador')+(I.cierre?' · hash del registro '+I.cierre.hash:'')+'\r\n\r\ninspeccion.json   Registro completo de terreno.\r\nrevisor-ifa.json  Archivo para "Abrir revisión" en el Revisor de IFA lumínicos de la DSC.\r\nacta-borrador.docx Borrador editable del acta.\r\nfotos/            Fotografías originales con sus metadatos.\r\nmanifiesto.json   SHA-256 de cada archivo del paquete.\r\n');
+  z.file('manifiesto.json',JSON.stringify({generado:stamp(),app:APP_VER,reglas:RULES_VER,inspeccion:I.id,hash_registro:I.cierre?I.cierre.hash:null,archivos:man},null,2));
+  return z.generateAsync({type:'blob',mimeType:'application/zip',compression:'DEFLATE',compressionOptions:{level:6}});
+}
+async function getDL(){if(!IN_ARTIFACT)return null;if(APP.dl!==undefined&&APP.dl!==null)return APP.dl;try{APP.dl=await window.claude.use('downloads');}catch(e){APP.dl=null;}return APP.dl;}
+async function saveFile(name,blob){
+  if(IN_ARTIFACT){var d=await getDL();if(!d){toast('La descarga no está disponible en esta vista.');return false;}
+    try{await d.save({filename:name,data:blob});return true;}catch(e){toast(e&&e.code==='declined'?'Descarga cancelada.':e&&e.code==='rate_limited'?'Ya hay una descarga por confirmar.':'No se pudo descargar en esta vista.');return false;}}
+  try{var file=new File([blob],name,{type:blob.type});
+    if(/iPhone|iPad|iPod/.test(navigator.userAgent)&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return true;}}catch(e){if(e&&e.name==='AbortError'){toast('Exportación cancelada.');return false;}}
+  var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},4000);return true;
+}
+function baseName(I){return slug(I.prep.uf)+'_'+(I.ejec.fecha||today());}
+async function exportActa(){var I=APP.I;if(typeof JSZip==='undefined'){toast('No se cargó el generador de documentos. Conéctese una vez para cargarlo.');return;}
+  toast('Generando acta…');var ok=await saveFile('acta_'+baseName(I)+'.docx',await actaBlob(I));if(ok){I.exportes.push({ts:stamp(),tipo:'acta .docx'});await saveNow();render(true);toast('Borrador de acta exportado.');}}
+async function exportZip(final){var I=APP.I;if(typeof JSZip==='undefined'){toast('No se cargó el generador de paquetes. Conéctese una vez para cargarlo.');return false;}
+  toast('Preparando paquete…');var blob=await buildZip(I,final);var ok=await saveFile('inspeccion_'+baseName(I)+(final?'_final':'_borrador')+'.zip',blob);
+  if(ok){I.exportes.push({ts:stamp(),tipo:final?'paquete final .zip':'paquete borrador .zip'});await saveNow();render(true);if(!final)toast('Paquete exportado.');}return ok;}
+async function closeInsp(b){
+  var I=APP.I;if(!b.getAttribute('data-sure')){b.setAttribute('data-sure','1');b.textContent='Confirmar cierre';setTimeout(function(){if(b.isConnected){b.removeAttribute('data-sure');b.textContent='Cerrar y exportar paquete final';}},4500);return;}
+  var prev={hFin:I.ejec.hFin};if(!I.ejec.hFin)I.ejec.hFin=nowHM();
+  var snap=JSON.parse(JSON.stringify(I));delete snap.exportes;delete snap.mod;
+  var h=await sha256(new TextEncoder().encode(JSON.stringify(snap)));
+  I.estado='cerrada';I.cierre={ts:stamp(),hash:h};
+  var ok=await exportZip(true);
+  if(!ok){I.estado='abierta';I.cierre=null;I.ejec.hFin=prev.hFin;await saveNow();render(true);toast('El cierre requiere guardar el paquete final (R16). La inspección sigue abierta.');return;}
+  await saveNow();render(true);toast('Inspección cerrada. Registro en solo lectura.');
+}
+
+/* ============ Inicio ============ */
+(async function boot(){
+  try{APP.night=localStorage.getItem('il:night')==='1';}catch(e){}applyNight();
+  render();
+  await STORE.open();
+  APP.index=(await STORE.get('kv','index'))||[];
+  var cur=null,mod='inicio';try{cur=localStorage.getItem('il:cur');mod=localStorage.getItem('il:mod')||'inicio';}catch(e){}
+  if(cur&&APP.index.some(function(x){return x.id===cur;})){await openInsp(cur);APP.mod=mod;}
+  render();
+  await loadLayers();
+  if(LAY.ready&&!APP.index.length){APP.I=sampleInsp();APP.I.est.forEach(function(s){s.utm=toUTM(s.lat,s.lon);s.zona=zoneOf(s.lat,s.lon);});await saveNow();APP.mod='m2';}
+  if(LAY.ready&&APP.I&&APP.I.estado!=='cerrada'){var ch=false;APP.I.est.forEach(function(s){if(s.lat!=null&&!s.zona){s.zona=zoneOf(s.lat,s.lon);ch=true;}});if(ch)touch();}
+  render();
+  if(!IN_ARTIFACT&&'serviceWorker' in navigator&&window.isSecureContext){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
+})();
+document.addEventListener('focusin',function(e){var t=e.target;if(t.matches&&t.matches('input,select,textarea'))setTimeout(function(){try{t.scrollIntoView({block:'center',behavior:'smooth'});}catch(x){}},250);});
+</script>
+
+</body>
+</html>
